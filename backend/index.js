@@ -98,16 +98,19 @@ const MOCK_POSITIONS = [
   },
 ];
 
-const HOLIDAY_BUS_IDS = new Set([
-  '3090',
-  '3410',
-  '3069',
-  '3019',
-  '3125',
-  '3817',
-  '3364',
-  '3160',
-]);
+// Holiday colors mapped to each bus ID
+const HOLIDAY_BUS_COLORS = {
+  '3090': '#e53935', // Red
+  '3410': '#43a047', // Green
+  '3069': '#1e88e5', // Blue
+  '3019': '#fdd835', // Gold
+  '3125': '#8e24aa', // Purple
+  '3817': '#00897b', // Teal
+  '3364': '#f4511e', // Deep Orange
+  '3160': '#c2185b', // Pink
+};
+
+const HOLIDAY_BUS_IDS = new Set(Object.keys(HOLIDAY_BUS_COLORS));
 
 let holidayBusPositions = [];
 
@@ -115,6 +118,7 @@ async function fetchVehiclePositions() {
   if (USE_MOCK_DATA) {
     holidayBusPositions = MOCK_POSITIONS.map((pos) => ({
       ...pos,
+      color: HOLIDAY_BUS_COLORS[pos.busId],
       timestamp: Math.floor(Date.now() / 1000),
     }));
     console.log(
@@ -146,6 +150,7 @@ async function fetchVehiclePositions() {
 
           positions.push({
             busId: vehicleId,
+            color: HOLIDAY_BUS_COLORS[vehicleId],
             latitude: position?.latitude ?? null,
             longitude: position?.longitude ?? null,
             bearing: position?.bearing ?? null,

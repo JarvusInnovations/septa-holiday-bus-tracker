@@ -174,6 +174,7 @@ export function buildRoutesGeoJSON(buses, currentTime) {
         properties: {
           type: 'route',
           busId: bus.busId,
+          color: bus.color,
           tripId: route.tripId,
           routeId: route.routeId,
           headsign: route.headsign,
@@ -189,6 +190,7 @@ export function buildRoutesGeoJSON(buses, currentTime) {
         properties: {
           type: 'stop',
           busId: bus.busId,
+          color: bus.color,
           stopId: stop.stopId,
           name: stop.name,
           arrivalTime: stop.arrivalTime,

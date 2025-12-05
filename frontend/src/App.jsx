@@ -35,20 +35,20 @@ function App() {
         data: EMPTY_GEOJSON,
       });
 
-      // Add route lines layer
+      // Add route lines layer - color from feature properties
       map.current.addLayer({
         id: 'route-lines',
         type: 'line',
         source: 'routes',
         filter: ['==', ['get', 'type'], 'route'],
         paint: {
-          'line-color': '#e53935',
+          'line-color': ['get', 'color'],
           'line-width': 4,
           'line-opacity': 0.6,
         },
       });
 
-      // Add stops layer
+      // Add stops layer - color from feature properties
       map.current.addLayer({
         id: 'route-stops',
         type: 'circle',
@@ -57,7 +57,7 @@ function App() {
         paint: {
           'circle-radius': 6,
           'circle-color': '#ffffff',
-          'circle-stroke-color': '#e53935',
+          'circle-stroke-color': ['get', 'color'],
           'circle-stroke-width': 2,
         },
       });
@@ -98,7 +98,7 @@ function App() {
               el.style.cssText = `
                 width: 24px;
                 height: 24px;
-                background-color: #e53935;
+                background-color: ${bus.color || '#e53935'};
                 border: 2px solid white;
                 border-radius: 50%;
                 cursor: pointer;
@@ -109,7 +109,7 @@ function App() {
                 .setLngLat([bus.longitude, bus.latitude])
                 .setPopup(
                   new maplibregl.Popup().setHTML(
-                    `<strong>Holiday Bus ${bus.busId}</strong>`
+                    `<strong>Holiday Bus ${bus.busId}</strong><br/>Route ${bus.routeId || 'N/A'}`
                   )
                 )
                 .addTo(map.current);
