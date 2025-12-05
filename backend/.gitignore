@@ -1,0 +1,10 @@
+# Dependencies
+node_modules/
+
+# GTFS data (large files, downloaded via bin/download-gtfs.js)
+data/gtfs/
+
+# Environment
+.env
+.env.local
+*.local

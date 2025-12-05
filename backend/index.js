@@ -1,8 +1,11 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import GtfsRealtimeBindings from 'gtfs-realtime-bindings';
+import { loadGtfsData } from './lib/gtfs-loader.js';
+import { buildRoutesGeoJSON } from './lib/route-predictor.js';
 
-const SEPTA_VEHICLE_POSITIONS_URL = 'https://www3.septa.org/gtfsrt/septa-pa-us/Vehicle/rtVehiclePosition.pb';
+const SEPTA_VEHICLE_POSITIONS_URL =
+  'https://www3.septa.org/gtfsrt/septa-pa-us/Vehicle/rtVehiclePosition.pb';
 const POLL_INTERVAL_MS = 5000;
 
 const HOLIDAY_BUS_IDS = new Set([
@@ -38,6 +41,8 @@ async function fetchVehiclePositions() {
 
         if (HOLIDAY_BUS_IDS.has(vehicleId)) {
           const position = entity.vehicle.position;
+          const trip = entity.vehicle.trip;
+
           positions.push({
             busId: vehicleId,
             latitude: position?.latitude ?? null,
@@ -47,6 +52,11 @@ async function fetchVehiclePositions() {
             timestamp: entity.vehicle.timestamp
               ? Number(entity.vehicle.timestamp)
               : null,
+            tripId: trip?.tripId ?? null,
+            routeId: trip?.routeId ?? null,
+            directionId: trip?.directionId ?? null,
+            startTime: trip?.startTime ?? null,
+            startDate: trip?.startDate ?? null,
           });
         }
       }
@@ -74,11 +84,25 @@ fastify.get('/api/buses', async (request, reply) => {
   };
 });
 
+fastify.get('/api/routes', async (request, reply) => {
+  const geojson = buildRoutesGeoJSON(holidayBusPositions, new Date());
+  return geojson;
+});
+
 fastify.get('/health', async (request, reply) => {
   return { status: 'ok' };
 });
 
 async function start() {
+  // Load GTFS data
+  try {
+    await loadGtfsData();
+  } catch (error) {
+    console.error('Failed to load GTFS data:', error.message);
+    console.error('Run `node bin/download-gtfs.js` to download the GTFS data first.');
+    process.exit(1);
+  }
+
   // Initial fetch
   await fetchVehiclePositions();
 
