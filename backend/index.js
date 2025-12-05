@@ -14,26 +14,86 @@ const USE_MOCK_DATA = process.env.USE_MOCK_DATA === 'true';
 const MOCK_POSITIONS = [
   {
     busId: '3090',
-    latitude: 39.943306,
-    longitude: -75.147302,
-    bearing: 180,
+    latitude: 40.029748,
+    longitude: -75.087722,
+    bearing: 45,
     speed: 8.5,
-    tripId: '376281', // Route 12 to 2nd-Spruce
-    routeId: '12',
+    tripId: '376058', // Route 1 to Parx Casino - Northeast Philly
+    routeId: '1',
     directionId: 0,
-    startTime: '22:11:00',
+    startTime: '18:00:00',
     startDate: new Date().toISOString().slice(0, 10).replace(/-/g, ''),
   },
   {
     busId: '3410',
-    latitude: 39.944198,
-    longitude: -75.143284,
-    bearing: 270,
+    latitude: 39.944731,
+    longitude: -75.174974,
+    bearing: 180,
     speed: 5.0,
-    tripId: '376345', // Route 12 to 2nd-Spruce
-    routeId: '12',
+    tripId: '377814', // Route 17 to 2nd-Market - Center City/South
+    routeId: '17',
     directionId: 0,
-    startTime: '22:12:00',
+    startTime: '10:00:00',
+    startDate: new Date().toISOString().slice(0, 10).replace(/-/g, ''),
+  },
+  {
+    busId: '3069',
+    latitude: 40.017132,
+    longitude: -75.154588,
+    bearing: 200,
+    speed: 7.2,
+    tripId: '381868', // Route 23 to 11th-Market - Germantown
+    routeId: '23',
+    directionId: 0,
+    startTime: '14:00:00',
+    startDate: new Date().toISOString().slice(0, 10).replace(/-/g, ''),
+  },
+  {
+    busId: '3019',
+    latitude: 39.973352,
+    longitude: -75.149405,
+    bearing: 270,
+    speed: 6.0,
+    tripId: '392314', // Route 47 to Whitman Plaza - North Philly
+    routeId: '47',
+    directionId: 0,
+    startTime: '11:30:00',
+    startDate: new Date().toISOString().slice(0, 10).replace(/-/g, ''),
+  },
+  {
+    busId: '3125',
+    latitude: 39.9602,
+    longitude: -75.224948,
+    bearing: 90,
+    speed: 4.5,
+    tripId: '394804', // Route 52 to 49th-Woodland - West Philly
+    routeId: '52',
+    directionId: 0,
+    startTime: '15:30:00',
+    startDate: new Date().toISOString().slice(0, 10).replace(/-/g, ''),
+  },
+  {
+    busId: '3817',
+    latitude: 40.041293,
+    longitude: -75.028643,
+    bearing: 315,
+    speed: 9.0,
+    tripId: '402596', // Route 66 to Frankford TC - Far Northeast
+    routeId: '66',
+    directionId: 0,
+    startTime: '10:00:00',
+    startDate: new Date().toISOString().slice(0, 10).replace(/-/g, ''),
+  },
+  {
+    busId: '3364',
+    latitude: 39.975848,
+    longitude: -75.168709,
+    bearing: 135,
+    speed: 5.5,
+    tripId: '385842', // Route 33 to 5th-Market - Fairmount/Spring Garden
+    routeId: '33',
+    directionId: 0,
+    startTime: '19:30:00',
     startDate: new Date().toISOString().slice(0, 10).replace(/-/g, ''),
   },
 ];
