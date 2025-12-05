@@ -11,6 +11,9 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
+            "env": {
+                "USE_MOCK_DATA": "true"
+            },
             "program": "${workspaceFolder}/backend/index.js"
         }
     ]

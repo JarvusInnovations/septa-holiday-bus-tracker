@@ -8,6 +8,36 @@ const SEPTA_VEHICLE_POSITIONS_URL =
   'https://www3.septa.org/gtfsrt/septa-pa-us/Vehicle/rtVehiclePosition.pb';
 const POLL_INTERVAL_MS = 5000;
 
+// Set USE_MOCK_DATA=true env var to use mock data for testing without live GTFS-RT feed
+const USE_MOCK_DATA = process.env.USE_MOCK_DATA === 'true';
+
+const MOCK_POSITIONS = [
+  {
+    busId: '3090',
+    latitude: 39.943306,
+    longitude: -75.147302,
+    bearing: 180,
+    speed: 8.5,
+    tripId: '376281', // Route 12 to 2nd-Spruce
+    routeId: '12',
+    directionId: 0,
+    startTime: '22:11:00',
+    startDate: new Date().toISOString().slice(0, 10).replace(/-/g, ''),
+  },
+  {
+    busId: '3410',
+    latitude: 39.944198,
+    longitude: -75.143284,
+    bearing: 270,
+    speed: 5.0,
+    tripId: '376345', // Route 12 to 2nd-Spruce
+    routeId: '12',
+    directionId: 0,
+    startTime: '22:12:00',
+    startDate: new Date().toISOString().slice(0, 10).replace(/-/g, ''),
+  },
+];
+
 const HOLIDAY_BUS_IDS = new Set([
   '3090',
   '3410',
@@ -22,6 +52,17 @@ const HOLIDAY_BUS_IDS = new Set([
 let holidayBusPositions = [];
 
 async function fetchVehiclePositions() {
+  if (USE_MOCK_DATA) {
+    holidayBusPositions = MOCK_POSITIONS.map((pos) => ({
+      ...pos,
+      timestamp: Math.floor(Date.now() / 1000),
+    }));
+    console.log(
+      `[${new Date().toISOString()}] Using mock data: ${holidayBusPositions.length} holiday buses`
+    );
+    return;
+  }
+
   try {
     const response = await fetch(SEPTA_VEHICLE_POSITIONS_URL);
     if (!response.ok) {
