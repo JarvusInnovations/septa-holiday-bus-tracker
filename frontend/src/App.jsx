@@ -4,13 +4,17 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import './App.css';
 
 const PHILADELPHIA_CENTER = [-75.1652, 39.9526];
-const API_URL = 'http://localhost:3000/api/buses';
+const BUSES_API_URL = 'http://localhost:3000/api/buses';
+const ROUTES_API_URL = 'http://localhost:3000/api/routes';
 const POLL_INTERVAL_MS = 5000;
+
+const EMPTY_GEOJSON = { type: 'FeatureCollection', features: [] };
 
 function App() {
   const mapContainer = useRef(null);
   const map = useRef(null);
   const markers = useRef({});
+  const mapLoaded = useRef(false);
 
   useEffect(() => {
     if (map.current) return;
@@ -23,17 +27,66 @@ function App() {
     });
 
     map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
+
+    map.current.on('load', () => {
+      // Add GeoJSON source for routes
+      map.current.addSource('routes', {
+        type: 'geojson',
+        data: EMPTY_GEOJSON,
+      });
+
+      // Add route lines layer
+      map.current.addLayer({
+        id: 'route-lines',
+        type: 'line',
+        source: 'routes',
+        filter: ['==', ['get', 'type'], 'route'],
+        paint: {
+          'line-color': '#e53935',
+          'line-width': 4,
+          'line-opacity': 0.6,
+        },
+      });
+
+      // Add stops layer
+      map.current.addLayer({
+        id: 'route-stops',
+        type: 'circle',
+        source: 'routes',
+        filter: ['==', ['get', 'type'], 'stop'],
+        paint: {
+          'circle-radius': 6,
+          'circle-color': '#ffffff',
+          'circle-stroke-color': '#e53935',
+          'circle-stroke-width': 2,
+        },
+      });
+
+      mapLoaded.current = true;
+    });
   }, []);
 
   useEffect(() => {
-    async function fetchBuses() {
+    async function fetchData() {
       try {
-        const response = await fetch(API_URL);
-        const data = await response.json();
+        // Fetch buses and routes in parallel
+        const [busesResponse, routesResponse] = await Promise.all([
+          fetch(BUSES_API_URL),
+          fetch(ROUTES_API_URL),
+        ]);
 
+        const busesData = await busesResponse.json();
+        const routesData = await routesResponse.json();
+
+        // Update route lines and stops
+        if (mapLoaded.current && map.current.getSource('routes')) {
+          map.current.getSource('routes').setData(routesData);
+        }
+
+        // Update bus markers
         const currentBusIds = new Set();
 
-        for (const bus of data.buses) {
+        for (const bus of busesData.buses) {
           currentBusIds.add(bus.busId);
 
           if (bus.latitude && bus.longitude) {
@@ -54,7 +107,11 @@ function App() {
 
               const marker = new maplibregl.Marker({ element: el })
                 .setLngLat([bus.longitude, bus.latitude])
-                .setPopup(new maplibregl.Popup().setHTML(`<strong>Holiday Bus ${bus.busId}</strong>`))
+                .setPopup(
+                  new maplibregl.Popup().setHTML(
+                    `<strong>Holiday Bus ${bus.busId}</strong>`
+                  )
+                )
                 .addTo(map.current);
 
               markers.current[bus.busId] = marker;
@@ -70,12 +127,12 @@ function App() {
           }
         }
       } catch (error) {
-        console.error('Error fetching buses:', error);
+        console.error('Error fetching data:', error);
       }
     }
 
-    fetchBuses();
-    const interval = setInterval(fetchBuses, POLL_INTERVAL_MS);
+    fetchData();
+    const interval = setInterval(fetchData, POLL_INTERVAL_MS);
 
     return () => clearInterval(interval);
   }, []);
