@@ -52,8 +52,11 @@ function getBusColor(busId) {
   return HOLIDAY_COLORS[index % HOLIDAY_COLORS.length];
 }
 
-let busPositions = [];
-let routesGeoJSON = { type: 'FeatureCollection', features: [] };
+// Store positions and routes together to ensure consistency
+let currentData = {
+  positions: [],
+  routes: { type: 'FeatureCollection', features: [] },
+};
 
 async function fetchVehiclePositions() {
   try {
@@ -97,12 +100,14 @@ async function fetchVehiclePositions() {
       }
     }
 
-    busPositions = positions;
-    routesGeoJSON = buildRoutesGeoJSON(positions, new Date());
+    const routes = buildRoutesGeoJSON(positions, new Date());
+
+    // Atomic update: replace both positions and routes together
+    currentData = { positions, routes };
 
     const mode = USE_TEST_BUSES ? 'test' : 'holiday';
     console.log(
-      `[${new Date().toISOString()}] Updated ${positions.length} ${mode} buses, ${routesGeoJSON.features.length} route features`
+      `[${new Date().toISOString()}] Updated ${positions.length} ${mode} buses, ${routes.features.length} route features`
     );
   } catch (error) {
     console.error('Error fetching vehicle positions:', error.message);
@@ -110,11 +115,11 @@ async function fetchVehiclePositions() {
 }
 
 export function getPositions() {
-  return busPositions;
+  return currentData.positions;
 }
 
 export function getRoutes() {
-  return routesGeoJSON;
+  return currentData.routes;
 }
 
 export async function startPolling() {
