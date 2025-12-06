@@ -12,7 +12,7 @@
                 "<node_internals>/**"
             ],
             "env": {
-                "USE_MOCK_DATA": "true"
+                "USE_TEST_BUSES": "true"
             },
             "program": "${workspaceFolder}/backend/index.js"
         }

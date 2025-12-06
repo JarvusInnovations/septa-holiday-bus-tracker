@@ -8,125 +8,56 @@ const SEPTA_VEHICLE_POSITIONS_URL =
   'https://www3.septa.org/gtfsrt/septa-pa-us/Vehicle/rtVehiclePosition.pb';
 const POLL_INTERVAL_MS = 5000;
 
-// Set USE_MOCK_DATA=true env var to use mock data for testing without live GTFS-RT feed
-const USE_MOCK_DATA = process.env.USE_MOCK_DATA === 'true';
+// Set USE_TEST_BUSES=true env var to track random test buses instead of holiday buses
+const USE_TEST_BUSES = process.env.USE_TEST_BUSES === 'true';
 
-const MOCK_POSITIONS = [
-  {
-    busId: '3090',
-    latitude: 40.029748,
-    longitude: -75.087722,
-    bearing: 45,
-    speed: 8.5,
-    tripId: '376058', // Route 1 to Parx Casino - Northeast Philly
-    routeId: '1',
-    directionId: 0,
-    startTime: '18:00:00',
-    startDate: new Date().toISOString().slice(0, 10).replace(/-/g, ''),
-  },
-  {
-    busId: '3410',
-    latitude: 39.944731,
-    longitude: -75.174974,
-    bearing: 180,
-    speed: 5.0,
-    tripId: '377814', // Route 17 to 2nd-Market - Center City/South
-    routeId: '17',
-    directionId: 0,
-    startTime: '10:00:00',
-    startDate: new Date().toISOString().slice(0, 10).replace(/-/g, ''),
-  },
-  {
-    busId: '3069',
-    latitude: 40.017132,
-    longitude: -75.154588,
-    bearing: 200,
-    speed: 7.2,
-    tripId: '381868', // Route 23 to 11th-Market - Germantown
-    routeId: '23',
-    directionId: 0,
-    startTime: '14:00:00',
-    startDate: new Date().toISOString().slice(0, 10).replace(/-/g, ''),
-  },
-  {
-    busId: '3019',
-    latitude: 39.973352,
-    longitude: -75.149405,
-    bearing: 270,
-    speed: 6.0,
-    tripId: '392314', // Route 47 to Whitman Plaza - North Philly
-    routeId: '47',
-    directionId: 0,
-    startTime: '11:30:00',
-    startDate: new Date().toISOString().slice(0, 10).replace(/-/g, ''),
-  },
-  {
-    busId: '3125',
-    latitude: 39.9602,
-    longitude: -75.224948,
-    bearing: 90,
-    speed: 4.5,
-    tripId: '394804', // Route 52 to 49th-Woodland - West Philly
-    routeId: '52',
-    directionId: 0,
-    startTime: '15:30:00',
-    startDate: new Date().toISOString().slice(0, 10).replace(/-/g, ''),
-  },
-  {
-    busId: '3817',
-    latitude: 40.041293,
-    longitude: -75.028643,
-    bearing: 315,
-    speed: 9.0,
-    tripId: '402596', // Route 66 to Frankford TC - Far Northeast
-    routeId: '66',
-    directionId: 0,
-    startTime: '10:00:00',
-    startDate: new Date().toISOString().slice(0, 10).replace(/-/g, ''),
-  },
-  {
-    busId: '3364',
-    latitude: 39.975848,
-    longitude: -75.168709,
-    bearing: 135,
-    speed: 5.5,
-    tripId: '385842', // Route 33 to 5th-Market - Fairmount/Spring Garden
-    routeId: '33',
-    directionId: 0,
-    startTime: '19:30:00',
-    startDate: new Date().toISOString().slice(0, 10).replace(/-/g, ''),
-  },
+// Actual holiday bus IDs (decorated buses)
+const HOLIDAY_BUS_IDS = new Set([
+  '3090',
+  '3410',
+  '3069',
+  '3019',
+  '3125',
+  '3817',
+  '3364',
+  '3160',
+]);
+
+// Test bus IDs for development (random buses currently in service)
+const TEST_BUS_IDS = new Set([
+  '8620', // Route 35
+  '3641', // Route 21
+  '3369', // Route 20
+  '3223', // Route 96
+  '3703', // Route 125
+  '3761', // Route 58
+  '3427', // Route 49
+  '3205', // Route 98
+]);
+
+// Holiday colors mapped to bus IDs
+const HOLIDAY_COLORS = [
+  '#e53935', // Red
+  '#43a047', // Green
+  '#1e88e5', // Blue
+  '#fdd835', // Gold
+  '#8e24aa', // Purple
+  '#00897b', // Teal
+  '#f4511e', // Deep Orange
+  '#c2185b', // Pink
 ];
 
-// Holiday colors mapped to each bus ID
-const HOLIDAY_BUS_COLORS = {
-  '3090': '#e53935', // Red
-  '3410': '#43a047', // Green
-  '3069': '#1e88e5', // Blue
-  '3019': '#fdd835', // Gold
-  '3125': '#8e24aa', // Purple
-  '3817': '#00897b', // Teal
-  '3364': '#f4511e', // Deep Orange
-  '3160': '#c2185b', // Pink
-};
+const TRACKED_BUS_IDS = USE_TEST_BUSES ? TEST_BUS_IDS : HOLIDAY_BUS_IDS;
+const BUS_ID_LIST = Array.from(TRACKED_BUS_IDS);
 
-const HOLIDAY_BUS_IDS = new Set(Object.keys(HOLIDAY_BUS_COLORS));
+function getBusColor(busId) {
+  const index = BUS_ID_LIST.indexOf(busId);
+  return HOLIDAY_COLORS[index % HOLIDAY_COLORS.length];
+}
 
 let holidayBusPositions = [];
 
 async function fetchVehiclePositions() {
-  if (USE_MOCK_DATA) {
-    holidayBusPositions = MOCK_POSITIONS.map((pos) => ({
-      ...pos,
-      color: HOLIDAY_BUS_COLORS[pos.busId],
-      timestamp: Math.floor(Date.now() / 1000),
-    }));
-    console.log(
-      `[${new Date().toISOString()}] Using mock data: ${holidayBusPositions.length} holiday buses`
-    );
-    return;
-  }
-
   try {
     const response = await fetch(SEPTA_VEHICLE_POSITIONS_URL);
     if (!response.ok) {
@@ -144,13 +75,13 @@ async function fetchVehiclePositions() {
       if (entity.vehicle?.vehicle?.id) {
         const vehicleId = entity.vehicle.vehicle.id;
 
-        if (HOLIDAY_BUS_IDS.has(vehicleId)) {
+        if (TRACKED_BUS_IDS.has(vehicleId)) {
           const position = entity.vehicle.position;
           const trip = entity.vehicle.trip;
 
           positions.push({
             busId: vehicleId,
-            color: HOLIDAY_BUS_COLORS[vehicleId],
+            color: getBusColor(vehicleId),
             latitude: position?.latitude ?? null,
             longitude: position?.longitude ?? null,
             bearing: position?.bearing ?? null,
@@ -169,8 +100,9 @@ async function fetchVehiclePositions() {
     }
 
     holidayBusPositions = positions;
+    const mode = USE_TEST_BUSES ? 'test' : 'holiday';
     console.log(
-      `[${new Date().toISOString()}] Updated positions for ${positions.length} holiday buses`
+      `[${new Date().toISOString()}] Updated positions for ${positions.length} ${mode} buses`
     );
   } catch (error) {
     console.error('Error fetching vehicle positions:', error.message);
