@@ -13,7 +13,7 @@ function App() {
   const mapContainer = useRef(null);
   const map = useRef(null);
   const markers = useRef({});
-  const mapLoaded = useRef(false);
+  const intervalRef = useRef(null);
 
   useEffect(() => {
     if (map.current) return;
@@ -81,91 +81,86 @@ function App() {
       const gapLength = 3;
 
       function animateDashArray() {
-        // Increment offset (reverse direction by subtracting instead)
         offset = (offset + 0.015) % (dashLength + gapLength);
-
-        // Smooth looping dash array pattern
-        // Start with gap of size 'offset', then alternate dash/gap
         const dashArray = [offset, gapLength, dashLength];
-
         map.current.setPaintProperty('route-lines', 'line-dasharray', dashArray);
         requestAnimationFrame(animateDashArray);
       }
 
       animateDashArray();
-      mapLoaded.current = true;
-    });
-  }, []);
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const response = await fetch(MAP_DATA_API_URL);
-        const data = await response.json();
+      // Data fetching function
+      async function fetchData() {
+        try {
+          const response = await fetch(MAP_DATA_API_URL);
+          const data = await response.json();
 
-        // Validate response has required data
-        if (!data.buses || !data.routes) {
-          console.error('Invalid response: missing buses or routes');
-          return;
-        }
+          if (!data.buses || !data.routes) {
+            console.error('Invalid response: missing buses or routes');
+            return;
+          }
 
-        // Update route lines and stops
-        if (mapLoaded.current && map.current.getSource('routes')) {
+          // Update route lines and stops
           map.current.getSource('routes').setData(data.routes);
-        }
 
-        // Update bus markers
-        const currentBusIds = new Set();
+          // Update bus markers
+          const currentBusIds = new Set();
 
-        for (const bus of data.buses) {
-          currentBusIds.add(bus.busId);
+          for (const bus of data.buses) {
+            currentBusIds.add(bus.busId);
 
-          if (bus.latitude && bus.longitude) {
-            if (markers.current[bus.busId]) {
-              markers.current[bus.busId].setLngLat([bus.longitude, bus.latitude]);
-            } else {
-              const el = document.createElement('div');
-              el.className = 'bus-marker';
-              el.style.cssText = `
-                width: 24px;
-                height: 24px;
-                background-color: ${bus.color || '#e53935'};
-                border: 2px solid white;
-                border-radius: 50%;
-                cursor: pointer;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-              `;
+            if (bus.latitude && bus.longitude) {
+              if (markers.current[bus.busId]) {
+                markers.current[bus.busId].setLngLat([bus.longitude, bus.latitude]);
+              } else {
+                const el = document.createElement('div');
+                el.className = 'bus-marker';
+                el.style.cssText = `
+                  width: 24px;
+                  height: 24px;
+                  background-color: ${bus.color || '#e53935'};
+                  border: 2px solid white;
+                  border-radius: 50%;
+                  cursor: pointer;
+                  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                `;
 
-              const marker = new maplibregl.Marker({ element: el })
-                .setLngLat([bus.longitude, bus.latitude])
-                .setPopup(
-                  new maplibregl.Popup().setHTML(
-                    `<strong>Holiday Bus ${bus.busId}</strong><br/>Route ${bus.routeId || 'N/A'}`
+                const marker = new maplibregl.Marker({ element: el })
+                  .setLngLat([bus.longitude, bus.latitude])
+                  .setPopup(
+                    new maplibregl.Popup().setHTML(
+                      `<strong>Holiday Bus ${bus.busId}</strong><br/>Route ${bus.routeId || 'N/A'}`
+                    )
                   )
-                )
-                .addTo(map.current);
+                  .addTo(map.current);
 
-              markers.current[bus.busId] = marker;
+                markers.current[bus.busId] = marker;
+              }
             }
           }
-        }
 
-        // Remove markers for buses no longer in the feed
-        for (const busId of Object.keys(markers.current)) {
-          if (!currentBusIds.has(busId)) {
-            markers.current[busId].remove();
-            delete markers.current[busId];
+          // Remove markers for buses no longer in the feed
+          for (const busId of Object.keys(markers.current)) {
+            if (!currentBusIds.has(busId)) {
+              markers.current[busId].remove();
+              delete markers.current[busId];
+            }
           }
+        } catch (error) {
+          console.error('Error fetching data:', error);
         }
-      } catch (error) {
-        console.error('Error fetching data:', error);
       }
-    }
 
-    fetchData();
-    const interval = setInterval(fetchData, POLL_INTERVAL_MS);
+      // Start fetching data now that map is ready
+      fetchData();
+      intervalRef.current = setInterval(fetchData, POLL_INTERVAL_MS);
+    });
 
-    return () => clearInterval(interval);
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
   }, []);
 
   return <div ref={mapContainer} className="map-container" />;
