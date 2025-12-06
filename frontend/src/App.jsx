@@ -153,14 +153,28 @@ function App() {
             }
           }
 
-          // Auto-fit to all buses on first load
+          // Auto-fit to all buses and route shapes on first load
           if (!hasInitialFit.current && data.buses.length > 0) {
             const bounds = new maplibregl.LngLatBounds();
             let hasValidBounds = false;
 
+            // Include bus positions
             for (const bus of data.buses) {
               if (bus.latitude && bus.longitude) {
                 bounds.extend([bus.longitude, bus.latitude]);
+                hasValidBounds = true;
+              }
+            }
+
+            // Include route shape coordinates
+            for (const feature of data.routes.features) {
+              if (feature.geometry.type === 'LineString') {
+                for (const coord of feature.geometry.coordinates) {
+                  bounds.extend(coord);
+                  hasValidBounds = true;
+                }
+              } else if (feature.geometry.type === 'Point') {
+                bounds.extend(feature.geometry.coordinates);
                 hasValidBounds = true;
               }
             }
