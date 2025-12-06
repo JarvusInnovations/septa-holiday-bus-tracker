@@ -21,7 +21,7 @@ spec:
             - containerPort: 3000
           env:
             - name: USE_TEST_BUSES
-              value: "false"
+              value: "true"
           resources:
             requests:
               memory: "512Mi"
