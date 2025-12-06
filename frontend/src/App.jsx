@@ -14,6 +14,7 @@ function App() {
   const map = useRef(null);
   const markers = useRef({});
   const intervalRef = useRef(null);
+  const hasInitialFit = useRef(false);
 
   useEffect(() => {
     if (map.current) return;
@@ -149,6 +150,24 @@ function App() {
             if (!currentBusIds.has(busId)) {
               markers.current[busId].remove();
               delete markers.current[busId];
+            }
+          }
+
+          // Auto-fit to all buses on first load
+          if (!hasInitialFit.current && data.buses.length > 0) {
+            const bounds = new maplibregl.LngLatBounds();
+            let hasValidBounds = false;
+
+            for (const bus of data.buses) {
+              if (bus.latitude && bus.longitude) {
+                bounds.extend([bus.longitude, bus.latitude]);
+                hasValidBounds = true;
+              }
+            }
+
+            if (hasValidBounds) {
+              map.current.fitBounds(bounds, { padding: 50 });
+              hasInitialFit.current = true;
             }
           }
         } catch (error) {
