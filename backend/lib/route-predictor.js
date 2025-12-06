@@ -3,26 +3,6 @@ import { getTrip, getStopTimes, getStop, getShape, isServiceActiveOnDate } from 
 const PREDICTION_WINDOW_MINUTES = 30;
 
 /**
- * Parse a GTFS time string (HH:MM:SS) to seconds since midnight.
- * Note: GTFS times can exceed 24:00:00 for trips spanning midnight.
- * Returns null for invalid time strings.
- */
-function parseGtfsTime(timeStr) {
-  if (!timeStr || typeof timeStr !== 'string') {
-    return null;
-  }
-  const parts = timeStr.split(':');
-  if (parts.length !== 3) {
-    return null;
-  }
-  const [hours, minutes, seconds] = parts.map(Number);
-  if (isNaN(hours) || isNaN(minutes) || isNaN(seconds)) {
-    return null;
-  }
-  return hours * 3600 + minutes * 60 + seconds;
-}
-
-/**
  * Get seconds since midnight for a given Date object.
  */
 function getSecondsOfDay(date) {
@@ -96,10 +76,11 @@ export function getUpcomingRoute(tripId, currentLat, currentLon, currentTime) {
   // Find upcoming stops within the time window
   const upcomingStops = [];
   for (const st of tripStopTimes) {
-    const arrivalSeconds = parseGtfsTime(st.arrivalTime);
+    // Use pre-computed arrivalSeconds from GTFS processing
+    const arrivalSeconds = st.arrivalSeconds;
 
     // Skip stops with invalid arrival times
-    if (arrivalSeconds === null) {
+    if (arrivalSeconds == null) {
       continue;
     }
 

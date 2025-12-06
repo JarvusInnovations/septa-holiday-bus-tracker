@@ -14,6 +14,19 @@ const DATA_DIR = path.join(__dirname, '..', 'data', 'gtfs');
 const TEMP_DIR = path.join(DATA_DIR, 'raw');
 const GTFS_URL = 'https://www3.septa.org/developer/google_bus.zip';
 
+/**
+ * Parse a GTFS time string (HH:MM:SS) to seconds since midnight.
+ * GTFS times can exceed 24:00:00 for trips spanning midnight.
+ */
+function parseGtfsTime(timeStr) {
+  if (!timeStr) return null;
+  const parts = timeStr.split(':');
+  if (parts.length !== 3) return null;
+  const [hours, minutes, seconds] = parts.map(Number);
+  if (isNaN(hours) || isNaN(minutes) || isNaN(seconds)) return null;
+  return hours * 3600 + minutes * 60 + seconds;
+}
+
 async function downloadAndExtract() {
   console.log('Downloading GTFS data from SEPTA...');
 
@@ -94,6 +107,8 @@ async function processStopTimes() {
       stopSequence: parseInt(r.stop_sequence, 10),
       arrivalTime: r.arrival_time,
       departureTime: r.departure_time,
+      arrivalSeconds: parseGtfsTime(r.arrival_time),
+      departureSeconds: parseGtfsTime(r.departure_time),
     });
   }
 
