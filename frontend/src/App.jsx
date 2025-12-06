@@ -27,15 +27,7 @@ function App() {
 
     map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
 
-    map.current.on('load', async () => {
-      // Load stop marker icon as HTML Image (SVG support)
-      const img = new Image(24, 24);
-      img.src = '/marker.svg';
-      await new Promise((resolve) => {
-        img.onload = resolve;
-      });
-      map.current.addImage('stop-marker', img);
-
+    map.current.on('load', () => {
       // Add GeoJSON source for routes
       map.current.addSource('routes', {
         type: 'geojson',
@@ -55,18 +47,18 @@ function App() {
         },
       });
 
-      // Stop markers as directional icons
+      // Stop markers as small colored circles (only visible when zoomed in)
       map.current.addLayer({
         id: 'route-stops',
-        type: 'symbol',
+        type: 'circle',
         source: 'routes',
         filter: ['==', ['get', 'type'], 'stop'],
-        layout: {
-          'icon-image': 'stop-marker',
-          'icon-size': 0.8,
-          'icon-rotate': ['+', ['get', 'bearing'], 180],
-          'icon-rotation-alignment': 'map',
-          'icon-allow-overlap': true,
+        minzoom: 14,
+        paint: {
+          'circle-radius': 5,
+          'circle-color': ['get', 'color'],
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': 1.5,
         },
       });
 
