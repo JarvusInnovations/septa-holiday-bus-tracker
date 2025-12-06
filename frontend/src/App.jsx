@@ -165,6 +165,14 @@ function App() {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
+      // Clean up markers
+      Object.values(markers.current).forEach((marker) => marker.remove());
+      markers.current = {};
+      // Clean up map
+      if (map.current) {
+        map.current.remove();
+        map.current = null;
+      }
     };
   }, []);
 
