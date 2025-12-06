@@ -1,0 +1,36 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: septa-holiday-bus-tracker
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: holiday.septa.mobi
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: septa-holiday-bus-tracker
+                port:
+                  number: 80
+    - host: septa-holiday-bus-tracker.live.k8s.jarv.us
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: septa-holiday-bus-tracker
+                port:
+                  number: 80
+  tls:
+    - hosts:
+        - holiday.septa.mobi
+      secretName: septa-holiday-bus-tracker-tls
+    - hosts:
+        - septa-holiday-bus-tracker.live.k8s.jarv.us
+      secretName: septa-holiday-bus-tracker-jarvus-tls

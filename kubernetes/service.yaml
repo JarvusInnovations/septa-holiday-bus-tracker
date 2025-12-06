@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: septa-holiday-bus-tracker
+  labels:
+    app: septa-holiday-bus-tracker
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 3000
+      protocol: TCP
+  selector:
+    app: septa-holiday-bus-tracker

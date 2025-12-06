@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: septa-holiday-bus-tracker
+  labels:
+    app: septa-holiday-bus-tracker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: septa-holiday-bus-tracker
+  template:
+    metadata:
+      labels:
+        app: septa-holiday-bus-tracker
+    spec:
+      containers:
+        - name: septa-holiday-bus-tracker
+          image: ghcr.io/jarvusinnovations/septa-holiday-bus-tracker:main
+          ports:
+            - containerPort: 3000
+          env:
+            - name: USE_TEST_BUSES
+              value: "false"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "100m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
