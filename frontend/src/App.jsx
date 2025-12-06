@@ -27,27 +27,22 @@ function App() {
 
     map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
 
-    map.current.on('load', () => {
+    map.current.on('load', async () => {
+      // Load stop marker icon as HTML Image (SVG support)
+      const img = new Image(24, 24);
+      img.src = '/marker.svg';
+      await new Promise((resolve) => {
+        img.onload = resolve;
+      });
+      map.current.addImage('stop-marker', img);
+
       // Add GeoJSON source for routes
       map.current.addSource('routes', {
         type: 'geojson',
         data: EMPTY_GEOJSON,
       });
 
-      // Base route line layer (solid, more transparent)
-      map.current.addLayer({
-        id: 'route-lines-base',
-        type: 'line',
-        source: 'routes',
-        filter: ['==', ['get', 'type'], 'route'],
-        paint: {
-          'line-color': ['get', 'color'],
-          'line-width': 4,
-          'line-opacity': 0.3,
-        },
-      });
-
-      // Animated dashed line layer on top
+      // Route line layer
       map.current.addLayer({
         id: 'route-lines',
         type: 'line',
@@ -56,38 +51,24 @@ function App() {
         paint: {
           'line-color': ['get', 'color'],
           'line-width': 4,
-          'line-opacity': 0.8,
-          'line-dasharray': [0, 4, 3],
+          'line-opacity': 0.6,
         },
       });
 
-      // Add stops layer - color from feature properties
+      // Stop markers as directional icons
       map.current.addLayer({
         id: 'route-stops',
-        type: 'circle',
+        type: 'symbol',
         source: 'routes',
         filter: ['==', ['get', 'type'], 'stop'],
-        paint: {
-          'circle-radius': 6,
-          'circle-color': '#ffffff',
-          'circle-stroke-color': ['get', 'color'],
-          'circle-stroke-width': 2,
+        layout: {
+          'icon-image': 'stop-marker',
+          'icon-size': 0.8,
+          'icon-rotate': ['+', ['get', 'bearing'], 180],
+          'icon-rotation-alignment': 'map',
+          'icon-allow-overlap': true,
         },
       });
-
-      // Animate the dash pattern to show direction of travel
-      let offset = 0;
-      const dashLength = 3;
-      const gapLength = 3;
-
-      function animateDashArray() {
-        offset = (offset + 0.015) % (dashLength + gapLength);
-        const dashArray = [offset, gapLength, dashLength];
-        map.current.setPaintProperty('route-lines', 'line-dasharray', dashArray);
-        requestAnimationFrame(animateDashArray);
-      }
-
-      animateDashArray();
 
       // Data fetching function
       async function fetchData() {
