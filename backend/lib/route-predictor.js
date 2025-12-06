@@ -5,9 +5,20 @@ const PREDICTION_WINDOW_MINUTES = 30;
 /**
  * Parse a GTFS time string (HH:MM:SS) to seconds since midnight.
  * Note: GTFS times can exceed 24:00:00 for trips spanning midnight.
+ * Returns null for invalid time strings.
  */
 function parseGtfsTime(timeStr) {
-  const [hours, minutes, seconds] = timeStr.split(':').map(Number);
+  if (!timeStr || typeof timeStr !== 'string') {
+    return null;
+  }
+  const parts = timeStr.split(':');
+  if (parts.length !== 3) {
+    return null;
+  }
+  const [hours, minutes, seconds] = parts.map(Number);
+  if (isNaN(hours) || isNaN(minutes) || isNaN(seconds)) {
+    return null;
+  }
   return hours * 3600 + minutes * 60 + seconds;
 }
 
@@ -81,6 +92,11 @@ export function getUpcomingRoute(tripId, currentLat, currentLon, currentTime) {
   const upcomingStops = [];
   for (const st of tripStopTimes) {
     const arrivalSeconds = parseGtfsTime(st.arrivalTime);
+
+    // Skip stops with invalid arrival times
+    if (arrivalSeconds === null) {
+      continue;
+    }
 
     // Include stops arriving within the next 30 minutes
     // Also include the next stop even if it's slightly in the past (for context)
