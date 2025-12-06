@@ -19,9 +19,6 @@ spec:
           image: ghcr.io/jarvusinnovations/septa-holiday-bus-tracker:main
           ports:
             - containerPort: 3000
-          env:
-            - name: USE_TEST_BUSES
-              value: "true"
           resources:
             requests:
               memory: "512Mi"

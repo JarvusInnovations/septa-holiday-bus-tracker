@@ -37,17 +37,10 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173 to view the map.
+Open <http://localhost:5173> to view the map.
 
-## Environment Variables
+## Test Mode
 
-### Backend
+To view test buses instead of holiday buses (useful for development when holiday buses aren't running), add `?test=true` to the URL:
 
-| Variable | Description |
-|----------|-------------|
-| `USE_TEST_BUSES` | Set to `true` to track random in-service buses instead of holiday buses (for development when holiday buses aren't running) |
-
-Example:
-```bash
-USE_TEST_BUSES=true npm run dev
-```
+<http://localhost:5173/?test=true>

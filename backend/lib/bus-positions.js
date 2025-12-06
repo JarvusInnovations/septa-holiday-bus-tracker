@@ -5,8 +5,6 @@ const SEPTA_VEHICLE_POSITIONS_URL =
   'https://www3.septa.org/gtfsrt/septa-pa-us/Vehicle/rtVehiclePosition.pb';
 const POLL_INTERVAL_MS = 5000;
 
-// Set USE_TEST_BUSES=true env var to track random test buses instead of holiday buses
-const USE_TEST_BUSES = process.env.USE_TEST_BUSES === 'true';
 
 // Actual holiday bus IDs (decorated buses)
 const HOLIDAY_BUS_IDS = new Set([
@@ -44,18 +42,25 @@ const HOLIDAY_COLORS = [
   '#c2185b', // Pink
 ];
 
-const TRACKED_BUS_IDS = USE_TEST_BUSES ? TEST_BUS_IDS : HOLIDAY_BUS_IDS;
-const BUS_ID_LIST = Array.from(TRACKED_BUS_IDS);
+const HOLIDAY_BUS_ID_LIST = Array.from(HOLIDAY_BUS_IDS);
+const TEST_BUS_ID_LIST = Array.from(TEST_BUS_IDS);
 
-function getBusColor(busId) {
-  const index = BUS_ID_LIST.indexOf(busId);
+function getBusColor(busId, mode) {
+  const busIdList = mode === 'test' ? TEST_BUS_ID_LIST : HOLIDAY_BUS_ID_LIST;
+  const index = busIdList.indexOf(busId);
   return HOLIDAY_COLORS[index % HOLIDAY_COLORS.length];
 }
 
-// Store positions and routes together to ensure consistency
+// Store positions and routes for both modes
 let currentData = {
-  positions: [],
-  routes: { type: 'FeatureCollection', features: [] },
+  holiday: {
+    positions: [],
+    routes: { type: 'FeatureCollection', features: [] },
+  },
+  test: {
+    positions: [],
+    routes: { type: 'FeatureCollection', features: [] },
+  },
 };
 
 async function fetchVehiclePositions() {
@@ -70,56 +75,71 @@ async function fetchVehiclePositions() {
       new Uint8Array(buffer)
     );
 
-    const positions = [];
+    const holidayPositions = [];
+    const testPositions = [];
 
     for (const entity of feed.entity) {
       if (entity.vehicle?.vehicle?.id) {
         const vehicleId = entity.vehicle.vehicle.id;
+        const position = entity.vehicle.position;
+        const trip = entity.vehicle.trip;
 
-        if (TRACKED_BUS_IDS.has(vehicleId)) {
-          const position = entity.vehicle.position;
-          const trip = entity.vehicle.trip;
+        const basePosition = {
+          busId: vehicleId,
+          latitude: position?.latitude ?? null,
+          longitude: position?.longitude ?? null,
+          bearing: position?.bearing ?? null,
+          speed: position?.speed ?? null,
+          timestamp: entity.vehicle.timestamp
+            ? Number(entity.vehicle.timestamp)
+            : null,
+          tripId: trip?.tripId ?? null,
+          routeId: trip?.routeId ?? null,
+          directionId: trip?.directionId ?? null,
+          startTime: trip?.startTime ?? null,
+          startDate: trip?.startDate ?? null,
+        };
 
-          positions.push({
-            busId: vehicleId,
-            color: getBusColor(vehicleId),
-            latitude: position?.latitude ?? null,
-            longitude: position?.longitude ?? null,
-            bearing: position?.bearing ?? null,
-            speed: position?.speed ?? null,
-            timestamp: entity.vehicle.timestamp
-              ? Number(entity.vehicle.timestamp)
-              : null,
-            tripId: trip?.tripId ?? null,
-            routeId: trip?.routeId ?? null,
-            directionId: trip?.directionId ?? null,
-            startTime: trip?.startTime ?? null,
-            startDate: trip?.startDate ?? null,
+        if (HOLIDAY_BUS_IDS.has(vehicleId)) {
+          holidayPositions.push({
+            ...basePosition,
+            color: getBusColor(vehicleId, 'holiday'),
+          });
+        }
+
+        if (TEST_BUS_IDS.has(vehicleId)) {
+          testPositions.push({
+            ...basePosition,
+            color: getBusColor(vehicleId, 'test'),
           });
         }
       }
     }
 
-    const routes = buildRoutesGeoJSON(positions, new Date());
+    const now = new Date();
+    const holidayRoutes = buildRoutesGeoJSON(holidayPositions, now);
+    const testRoutes = buildRoutesGeoJSON(testPositions, now);
 
-    // Atomic update: replace both positions and routes together
-    currentData = { positions, routes };
+    // Atomic update: replace both caches together
+    currentData = {
+      holiday: { positions: holidayPositions, routes: holidayRoutes },
+      test: { positions: testPositions, routes: testRoutes },
+    };
 
-    const mode = USE_TEST_BUSES ? 'test' : 'holiday';
     console.log(
-      `[${new Date().toISOString()}] Updated ${positions.length} ${mode} buses, ${routes.features.length} route features`
+      `[${now.toISOString()}] Updated holiday: ${holidayPositions.length} buses, ${holidayRoutes.features.length} features | test: ${testPositions.length} buses, ${testRoutes.features.length} features`
     );
   } catch (error) {
     console.error('Error fetching vehicle positions:', error.message);
   }
 }
 
-export function getPositions() {
-  return currentData.positions;
+export function getPositions(mode = 'holiday') {
+  return currentData[mode]?.positions || [];
 }
 
-export function getRoutes() {
-  return currentData.routes;
+export function getRoutes(mode = 'holiday') {
+  return currentData[mode]?.routes || { type: 'FeatureCollection', features: [] };
 }
 
 export async function startPolling() {

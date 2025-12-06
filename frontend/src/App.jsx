@@ -7,6 +7,9 @@ const PHILADELPHIA_CENTER = [-75.1652, 39.9526];
 const MAP_DATA_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/map-data';
 const POLL_INTERVAL_MS = 5000;
 
+const isTestMode = new URLSearchParams(window.location.search).get('test') === 'true';
+const apiUrl = isTestMode ? `${MAP_DATA_API_URL}?test=true` : MAP_DATA_API_URL;
+
 const EMPTY_GEOJSON = { type: 'FeatureCollection', features: [] };
 
 function App() {
@@ -98,7 +101,7 @@ function App() {
       // Data fetching function
       async function fetchData() {
         try {
-          const response = await fetch(MAP_DATA_API_URL);
+          const response = await fetch(apiUrl);
           const data = await response.json();
 
           if (!data.buses || !data.routes) {
@@ -135,7 +138,7 @@ function App() {
                   .setLngLat([bus.longitude, bus.latitude])
                   .setPopup(
                     new maplibregl.Popup().setHTML(
-                      `<strong>Holiday Bus ${bus.busId}</strong><br/>Route ${bus.routeId || 'N/A'}`
+                      `<strong>${isTestMode ? 'Test' : 'Holiday'} Bus ${bus.busId}</strong><br/>Route ${bus.routeId || 'N/A'}`
                     )
                   )
                   .addTo(map.current);

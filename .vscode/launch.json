@@ -11,9 +11,7 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "env": {
-                "USE_TEST_BUSES": "true"
-            },
+            "env": {},
             "program": "${workspaceFolder}/backend/index.js"
         }
     ]

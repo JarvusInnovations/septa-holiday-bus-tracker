@@ -1,6 +1,12 @@
 import { getPositions, getRoutes } from '../lib/bus-positions.js';
 
 const mapDataSchema = {
+  querystring: {
+    type: 'object',
+    properties: {
+      test: { type: 'string' },
+    },
+  },
   response: {
     200: {
       type: 'object',
@@ -41,9 +47,10 @@ const mapDataSchema = {
 
 export default async function mapDataRoute(fastify) {
   fastify.get('/api/map-data', { schema: mapDataSchema }, async (request, reply) => {
+    const mode = request.query.test === 'true' ? 'test' : 'holiday';
     return {
-      buses: getPositions(),
-      routes: getRoutes(),
+      buses: getPositions(mode),
+      routes: getRoutes(mode),
       lastUpdated: new Date().toISOString(),
     };
   });
