@@ -35,7 +35,20 @@ function App() {
         data: EMPTY_GEOJSON,
       });
 
-      // Add route lines layer - color from feature properties
+      // Base route line layer (solid, more transparent)
+      map.current.addLayer({
+        id: 'route-lines-base',
+        type: 'line',
+        source: 'routes',
+        filter: ['==', ['get', 'type'], 'route'],
+        paint: {
+          'line-color': ['get', 'color'],
+          'line-width': 4,
+          'line-opacity': 0.3,
+        },
+      });
+
+      // Animated dashed line layer on top
       map.current.addLayer({
         id: 'route-lines',
         type: 'line',
@@ -44,7 +57,8 @@ function App() {
         paint: {
           'line-color': ['get', 'color'],
           'line-width': 4,
-          'line-opacity': 0.6,
+          'line-opacity': 0.8,
+          'line-dasharray': [0, 4, 3],
         },
       });
 
@@ -62,6 +76,24 @@ function App() {
         },
       });
 
+      // Animate the dash pattern to show direction of travel
+      let offset = 0;
+      const dashLength = 3;
+      const gapLength = 3;
+
+      function animateDashArray() {
+        // Increment offset (reverse direction by subtracting instead)
+        offset = (offset + 0.015) % (dashLength + gapLength);
+
+        // Smooth looping dash array pattern
+        // Start with gap of size 'offset', then alternate dash/gap
+        const dashArray = [offset, gapLength, dashLength];
+
+        map.current.setPaintProperty('route-lines', 'line-dasharray', dashArray);
+        requestAnimationFrame(animateDashArray);
+      }
+
+      animateDashArray();
       mapLoaded.current = true;
     });
   }, []);
