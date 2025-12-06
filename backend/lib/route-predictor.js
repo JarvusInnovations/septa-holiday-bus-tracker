@@ -1,4 +1,4 @@
-import { getTrip, getStopTimes, getStop, getShape } from './gtfs-loader.js';
+import { getTrip, getStopTimes, getStop, getShape, isServiceActiveOnDate } from './gtfs-loader.js';
 
 const PREDICTION_WINDOW_MINUTES = 30;
 
@@ -77,6 +77,11 @@ function findClosestShapePoint(shapePoints, lat, lon) {
 export function getUpcomingRoute(tripId, currentLat, currentLon, currentTime) {
   const trip = getTrip(tripId);
   if (!trip) {
+    return null;
+  }
+
+  // Verify this trip's service is active today
+  if (!isServiceActiveOnDate(trip.serviceId, currentTime)) {
     return null;
   }
 
