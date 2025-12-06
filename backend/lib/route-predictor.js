@@ -37,24 +37,6 @@ function haversineDistance(lat1, lon1, lat2, lon2) {
 }
 
 /**
- * Calculate bearing from point 1 to point 2.
- * Returns degrees from north (0-360).
- */
-function calculateBearing(lat1, lon1, lat2, lon2) {
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const lat1Rad = (lat1 * Math.PI) / 180;
-  const lat2Rad = (lat2 * Math.PI) / 180;
-
-  const y = Math.sin(dLon) * Math.cos(lat2Rad);
-  const x =
-    Math.cos(lat1Rad) * Math.sin(lat2Rad) -
-    Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLon);
-
-  const bearing = Math.atan2(y, x) * (180 / Math.PI);
-  return (bearing + 360) % 360;
-}
-
-/**
  * Find the closest shape point to the current vehicle position.
  */
 function findClosestShapePoint(shapePoints, lat, lon) {
@@ -201,21 +183,8 @@ export function buildRoutesGeoJSON(buses, currentTime) {
       });
     }
 
-    // Add stop features with bearing for direction indication
-    for (let i = 0; i < route.upcomingStops.length; i++) {
-      const stop = route.upcomingStops[i];
-      const nextStop = route.upcomingStops[i + 1];
-
-      // Calculate bearing to next stop (use previous bearing for last stop)
-      let bearing = 0;
-      if (nextStop) {
-        bearing = calculateBearing(stop.lat, stop.lon, nextStop.lat, nextStop.lon);
-      } else if (i > 0) {
-        // For last stop, use bearing from previous stop
-        const prevStop = route.upcomingStops[i - 1];
-        bearing = calculateBearing(prevStop.lat, prevStop.lon, stop.lat, stop.lon);
-      }
-
+    // Add stop features
+    for (const stop of route.upcomingStops) {
       features.push({
         type: 'Feature',
         properties: {
@@ -226,7 +195,6 @@ export function buildRoutesGeoJSON(buses, currentTime) {
           name: stop.name,
           arrivalTime: stop.arrivalTime,
           departureTime: stop.departureTime,
-          bearing: bearing,
         },
         geometry: {
           type: 'Point',
