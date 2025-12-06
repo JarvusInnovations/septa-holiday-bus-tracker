@@ -4,7 +4,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import './App.css';
 
 const PHILADELPHIA_CENTER = [-75.1652, 39.9526];
-const MAP_DATA_API_URL = 'http://localhost:3000/api/map-data';
+const MAP_DATA_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/map-data';
 const POLL_INTERVAL_MS = 5000;
 
 const EMPTY_GEOJSON = { type: 'FeatureCollection', features: [] };
