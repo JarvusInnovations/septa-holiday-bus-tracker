@@ -4,8 +4,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import './App.css';
 
 const PHILADELPHIA_CENTER = [-75.1652, 39.9526];
-const BUSES_API_URL = 'http://localhost:3000/api/buses';
-const ROUTES_API_URL = 'http://localhost:3000/api/routes';
+const MAP_DATA_API_URL = 'http://localhost:3000/api/map-data';
 const POLL_INTERVAL_MS = 5000;
 
 const EMPTY_GEOJSON = { type: 'FeatureCollection', features: [] };
@@ -101,24 +100,24 @@ function App() {
   useEffect(() => {
     async function fetchData() {
       try {
-        // Fetch buses and routes in parallel
-        const [busesResponse, routesResponse] = await Promise.all([
-          fetch(BUSES_API_URL),
-          fetch(ROUTES_API_URL),
-        ]);
+        const response = await fetch(MAP_DATA_API_URL);
+        const data = await response.json();
 
-        const busesData = await busesResponse.json();
-        const routesData = await routesResponse.json();
+        // Validate response has required data
+        if (!data.buses || !data.routes) {
+          console.error('Invalid response: missing buses or routes');
+          return;
+        }
 
         // Update route lines and stops
         if (mapLoaded.current && map.current.getSource('routes')) {
-          map.current.getSource('routes').setData(routesData);
+          map.current.getSource('routes').setData(data.routes);
         }
 
         // Update bus markers
         const currentBusIds = new Set();
 
-        for (const bus of busesData.buses) {
+        for (const bus of data.buses) {
           currentBusIds.add(bus.busId);
 
           if (bus.latitude && bus.longitude) {
