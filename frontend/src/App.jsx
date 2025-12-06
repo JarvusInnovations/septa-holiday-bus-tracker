@@ -62,6 +62,38 @@ function App() {
         },
       });
 
+      // Click handler for stop markers
+      map.current.on('click', 'route-stops', (e) => {
+        const feature = e.features[0];
+        const props = feature.properties;
+        const coordinates = feature.geometry.coordinates.slice();
+
+        // Format time as 12-hour
+        const formatTime = (timeStr) => {
+          const [hours, minutes] = timeStr.split(':');
+          const h = parseInt(hours, 10);
+          const period = h >= 12 ? 'PM' : 'AM';
+          const hour12 = h % 12 || 12;
+          return `${hour12}:${minutes} ${period}`;
+        };
+
+        new maplibregl.Popup()
+          .setLngLat(coordinates)
+          .setHTML(
+            `<strong>${props.name}</strong><br/>` +
+            `Scheduled arrival: ${formatTime(props.arrivalTime)}`
+          )
+          .addTo(map.current);
+      });
+
+      // Change cursor on hover
+      map.current.on('mouseenter', 'route-stops', () => {
+        map.current.getCanvas().style.cursor = 'pointer';
+      });
+      map.current.on('mouseleave', 'route-stops', () => {
+        map.current.getCanvas().style.cursor = '';
+      });
+
       // Data fetching function
       async function fetchData() {
         try {
