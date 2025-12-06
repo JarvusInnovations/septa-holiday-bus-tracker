@@ -121,18 +121,18 @@ export function getUpcomingRoute(tripId, currentLat, currentLon, currentTime) {
       }
 
       // Extract the segment from current position to end
-      // Ensure we go forward along the route
-      const startIdx = Math.min(currentShapeIdx, endShapeIdx);
-      const endIdx = Math.max(currentShapeIdx, endShapeIdx);
+      // Only show route ahead of the bus, not behind it
+      // If bus has passed the last upcoming stop, don't show a route line
+      if (currentShapeIdx <= endShapeIdx) {
+        const segmentPoints = shapePoints.slice(currentShapeIdx, endShapeIdx + 1);
 
-      const segmentPoints = shapePoints.slice(startIdx, endIdx + 1);
-
-      // Build GeoJSON LineString
-      if (segmentPoints.length >= 2) {
-        routeGeometry = {
-          type: 'LineString',
-          coordinates: segmentPoints.map((p) => [p.lon, p.lat]),
-        };
+        // Build GeoJSON LineString
+        if (segmentPoints.length >= 2) {
+          routeGeometry = {
+            type: 'LineString',
+            coordinates: segmentPoints.map((p) => [p.lon, p.lat]),
+          };
+        }
       }
     }
   }
