@@ -1,6 +1,24 @@
-.map-container {
+.app-container {
+  display: flex;
+  flex-direction: column;
   width: 100%;
   height: 100%;
+}
+
+.title-bar {
+  background: linear-gradient(135deg, #c41e3a 0%, #228b22 100%);
+  color: white;
+  text-align: center;
+  padding: 12px 16px;
+  font-size: 1.5rem;
+  font-weight: bold;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+  letter-spacing: 1px;
+}
+
+.map-container {
+  flex: 1;
+  width: 100%;
 }
 
 .maplibregl-popup-close-button {

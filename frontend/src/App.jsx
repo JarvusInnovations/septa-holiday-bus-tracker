@@ -212,7 +212,14 @@ function App() {
     };
   }, []);
 
-  return <div ref={mapContainer} className="map-container" />;
+  return (
+    <div className="app-container">
+      <header className="title-bar">
+        🎄 Holiday Bus Tracker 🎅
+      </header>
+      <div ref={mapContainer} className="map-container" />
+    </div>
+  );
 }
 
 export default App;
