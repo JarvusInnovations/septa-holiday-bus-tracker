@@ -59,7 +59,7 @@ function App() {
         filter: ['==', ['get', 'type'], 'stop'],
         minzoom: 14,
         paint: {
-          'circle-radius': 5,
+          'circle-radius': 7,
           'circle-color': ['get', 'color'],
           'circle-stroke-color': '#ffffff',
           'circle-stroke-width': 1.5,
