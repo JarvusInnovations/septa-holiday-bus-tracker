@@ -57,7 +57,7 @@ function App() {
         type: 'circle',
         source: 'routes',
         filter: ['==', ['get', 'type'], 'stop'],
-        minzoom: 14,
+        minzoom: 13,
         paint: {
           'circle-radius': 7,
           'circle-color': ['get', 'color'],
