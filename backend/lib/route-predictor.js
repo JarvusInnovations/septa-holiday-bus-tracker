@@ -1,4 +1,5 @@
 import { getTrip, getStopTimes, getStop, getShape, isServiceActiveOnDate } from './gtfs-loader.js';
+import { getStopPrediction } from './trip-updates.js';
 
 const PREDICTION_WINDOW_MINUTES = 30;
 
@@ -7,6 +8,17 @@ const PREDICTION_WINDOW_MINUTES = 30;
  */
 function getSecondsOfDay(date) {
   return date.getHours() * 3600 + date.getMinutes() * 60 + date.getSeconds();
+}
+
+/**
+ * Convert Unix timestamp to HH:MM:SS format string.
+ */
+function unixToTimeString(unixTimestamp) {
+  const date = new Date(unixTimestamp * 1000);
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const seconds = date.getSeconds().toString().padStart(2, '0');
+  return `${hours}:${minutes}:${seconds}`;
 }
 
 /**
@@ -77,16 +89,45 @@ export function getUpcomingRoute(tripId, currentLat, currentLon, currentTime) {
   const upcomingStops = [];
   for (const st of tripStopTimes) {
     // Use pre-computed arrivalSeconds from GTFS processing
-    const arrivalSeconds = st.arrivalSeconds;
+    const scheduledArrivalSeconds = st.arrivalSeconds;
 
     // Skip stops with invalid arrival times
-    if (arrivalSeconds == null) {
+    if (scheduledArrivalSeconds == null) {
       continue;
     }
 
-    // Include stops arriving within the next 30 minutes
+    // Check for real-time prediction
+    const prediction = getStopPrediction(tripId, st.stopSequence);
+    let effectiveArrivalSeconds = scheduledArrivalSeconds;
+    let predictedArrivalTime = null;
+    let arrivalDelay = null;
+    let isRealTime = false;
+
+    if (prediction) {
+      if (prediction.arrivalTime != null) {
+        // Use predicted arrival time (Unix timestamp)
+        const predDate = new Date(prediction.arrivalTime * 1000);
+        effectiveArrivalSeconds = getSecondsOfDay(predDate);
+        predictedArrivalTime = unixToTimeString(prediction.arrivalTime);
+        isRealTime = true;
+      }
+      if (prediction.arrivalDelay != null) {
+        arrivalDelay = prediction.arrivalDelay;
+        isRealTime = true;
+        // If we have delay but no absolute time, calculate predicted time
+        if (predictedArrivalTime == null) {
+          effectiveArrivalSeconds = scheduledArrivalSeconds + prediction.arrivalDelay;
+          const hours = Math.floor(effectiveArrivalSeconds / 3600) % 24;
+          const minutes = Math.floor((effectiveArrivalSeconds % 3600) / 60);
+          const seconds = effectiveArrivalSeconds % 60;
+          predictedArrivalTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+      }
+    }
+
+    // Include stops arriving within the next 30 minutes (using effective/predicted time)
     // Also include the next stop even if it's slightly in the past (for context)
-    if (arrivalSeconds >= currentSeconds - 60 && arrivalSeconds <= windowEndSeconds) {
+    if (effectiveArrivalSeconds >= currentSeconds - 60 && effectiveArrivalSeconds <= windowEndSeconds) {
       const stop = getStop(st.stopId);
       if (stop) {
         upcomingStops.push({
@@ -97,6 +138,9 @@ export function getUpcomingRoute(tripId, currentLat, currentLon, currentTime) {
           arrivalTime: st.arrivalTime,
           departureTime: st.departureTime,
           stopSequence: st.stopSequence,
+          predictedArrivalTime,
+          arrivalDelay,
+          isRealTime,
         });
       }
     }
@@ -197,6 +241,9 @@ export function buildRoutesGeoJSON(buses, currentTime) {
           name: stop.name,
           arrivalTime: stop.arrivalTime,
           departureTime: stop.departureTime,
+          predictedArrivalTime: stop.predictedArrivalTime,
+          arrivalDelay: stop.arrivalDelay,
+          isRealTime: stop.isRealTime,
         },
         geometry: {
           type: 'Point',

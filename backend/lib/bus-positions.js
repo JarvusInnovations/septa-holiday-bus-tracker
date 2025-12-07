@@ -1,5 +1,6 @@
 import GtfsRealtimeBindings from 'gtfs-realtime-bindings';
 import { buildRoutesGeoJSON } from './route-predictor.js';
+import { fetchTripUpdates } from './trip-updates.js';
 
 const SEPTA_VEHICLE_POSITIONS_URL =
   'https://www3.septa.org/gtfsrt/septa-pa-us/Vehicle/rtVehiclePosition.pb';
@@ -65,7 +66,11 @@ let currentData = {
 
 async function fetchVehiclePositions() {
   try {
-    const response = await fetch(SEPTA_VEHICLE_POSITIONS_URL);
+    // Fetch vehicle positions and trip updates in parallel
+    const [response] = await Promise.all([
+      fetch(SEPTA_VEHICLE_POSITIONS_URL),
+      fetchTripUpdates(),
+    ]);
     if (!response.ok) {
       throw new Error(`HTTP error: ${response.status}`);
     }

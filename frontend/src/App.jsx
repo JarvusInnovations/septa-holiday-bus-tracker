@@ -74,6 +74,7 @@ function App() {
 
         // Format time as 12-hour
         const formatTime = (timeStr) => {
+          if (!timeStr) return '';
           const [hours, minutes] = timeStr.split(':');
           const h = parseInt(hours, 10);
           const period = h >= 12 ? 'PM' : 'AM';
@@ -81,12 +82,33 @@ function App() {
           return `${hour12}:${minutes} ${period}`;
         };
 
+        // Build popup content based on real-time vs scheduled
+        let popupContent = `<strong>${props.name}</strong><br/>`;
+
+        if (props.isRealTime) {
+          // Show real-time prediction
+          const displayTime = props.predictedArrivalTime || props.arrivalTime;
+          popupContent += `<span style="color: #e53935;">●</span> Live: ${formatTime(displayTime)}`;
+
+          // Show delay info if available
+          if (props.arrivalDelay != null) {
+            const delayMinutes = Math.round(props.arrivalDelay / 60);
+            if (delayMinutes > 0) {
+              popupContent += ` <span style="color: #e53935;">(${delayMinutes} min late)</span>`;
+            } else if (delayMinutes < 0) {
+              popupContent += ` <span style="color: #43a047;">(${-delayMinutes} min early)</span>`;
+            } else {
+              popupContent += ` <span style="color: #43a047;">(on time)</span>`;
+            }
+          }
+        } else {
+          // Show scheduled time
+          popupContent += `<span style="color: #757575;">○</span> Scheduled: ${formatTime(props.arrivalTime)}`;
+        }
+
         new maplibregl.Popup()
           .setLngLat(coordinates)
-          .setHTML(
-            `<strong>${props.name}</strong><br/>` +
-            `Scheduled arrival: ${formatTime(props.arrivalTime)}`
-          )
+          .setHTML(popupContent)
           .addTo(map.current);
       });
 
