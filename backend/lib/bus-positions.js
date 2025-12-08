@@ -5,7 +5,7 @@ import { fetchTripUpdates } from './trip-updates.js';
 const SEPTA_VEHICLE_POSITIONS_URL =
   'https://www3.septa.org/gtfsrt/septa-pa-us/Vehicle/rtVehiclePosition.pb';
 const POLL_INTERVAL_MS = 5000;
-const TEST_BUS_COUNT = 8;
+const TEST_BUS_COUNT = 9;
 
 // Holiday bus metadata (decorated buses)
 const HOLIDAY_BUSES = {
@@ -18,10 +18,11 @@ const HOLIDAY_BUSES = {
   '3817': { district: 'Midvale', headsign: "National Lampoon's Christmas Vacation" },
   '3364': { district: 'Comly', headsign: 'Christmas in Wonderland' },
   '3160': { district: 'Frankford', headsign: 'Care Bear Party Bus' },
-  
+
   // Trolleys:
   '9034': { district: 'Elmwood', headsign: 'Home Alone' },
-  '9087': { district: 'Elmwood', headsign: 'Holiday' },
+  '9087': { district: 'Elmwood', headsign: 'Home' },
+  '9053': { district: 'Callowhill', headsign: 'Frosty the Snow Mobile' },
 };
 
 const HOLIDAY_BUS_IDS = new Set(Object.keys(HOLIDAY_BUSES));
