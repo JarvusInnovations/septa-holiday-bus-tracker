@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './App.css';
@@ -12,7 +12,15 @@ const apiUrl = isTestMode ? `${MAP_DATA_API_URL}?test=true` : MAP_DATA_API_URL;
 
 const EMPTY_GEOJSON = { type: 'FeatureCollection', features: [] };
 
+const HOLIDAY_EMOJIS = ['🎅', '🎄', '🎁', '✨', '☃︎', '❄️', '🦌', '☃️', '🎀', '🕯️', '🎅🏼', '🤶'];
+
+function getRandomEmojis() {
+  const shuffled = [...HOLIDAY_EMOJIS].sort(() => Math.random() - 0.5);
+  return [shuffled[0], shuffled[1]];
+}
+
 function App() {
+  const [emojis] = useState(() => getRandomEmojis());
   const mapContainer = useRef(null);
   const map = useRef(null);
   const markers = useRef({});
@@ -237,7 +245,7 @@ function App() {
   return (
     <div className="app-container">
       <header className="title-bar">
-        ❄️ Festibus Tracker 🎁
+        {emojis[0]} Festibus Tracker {emojis[1]}
       </header>
       <div ref={mapContainer} className="map-container" />
     </div>
