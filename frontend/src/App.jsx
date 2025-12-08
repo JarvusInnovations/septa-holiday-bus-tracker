@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import SnowfallOverlay from './SnowfallOverlay';
 import './App.css';
 
 const PHILADELPHIA_CENTER = [-75.1652, 39.9526];
@@ -14,6 +15,8 @@ const EMPTY_GEOJSON = { type: 'FeatureCollection', features: [] };
 
 const HOLIDAY_EMOJIS = ['🎅', '🎄', '🎁', '✨', '☃︎', '❄️', '🦌', '☃️', '🎀', '🕯️', '🎅🏼', '🤶'];
 
+const CHRISTMAS_COLORS = ['#228b22', '#c41e3a']; // Green, Red
+
 function getRandomEmojis() {
   const shuffled = [...HOLIDAY_EMOJIS].sort(() => Math.random() - 0.5);
   return [shuffled[0], shuffled[1]];
@@ -26,6 +29,8 @@ function App() {
   const markers = useRef({});
   const intervalRef = useRef(null);
   const hasInitialFit = useRef(false);
+  const colorOffsetRef = useRef(0);
+  const lightsIntervalRef = useRef(null);
 
   useEffect(() => {
     if (map.current) return;
@@ -59,7 +64,27 @@ function App() {
         },
       });
 
-      // Stop markers as small colored circles (only visible when zoomed in)
+      // Glow effect layer (rendered behind the main stops)
+      map.current.addLayer({
+        id: 'route-stops-glow',
+        type: 'circle',
+        source: 'routes',
+        filter: ['==', ['get', 'type'], 'stop'],
+        minzoom: 13,
+        paint: {
+          'circle-radius': 20,
+          'circle-color': [
+            'match',
+            ['%', ['get', 'stopSequence'], 2],
+            0, CHRISTMAS_COLORS[0],
+            CHRISTMAS_COLORS[1],
+          ],
+          'circle-blur': 1.2,
+          'circle-opacity': 0.6,
+        },
+      });
+
+      // Stop markers as festive ornaments (alternating red, green)
       map.current.addLayer({
         id: 'route-stops',
         type: 'circle',
@@ -67,12 +92,36 @@ function App() {
         filter: ['==', ['get', 'type'], 'stop'],
         minzoom: 13,
         paint: {
-          'circle-radius': 7,
-          'circle-color': ['get', 'color'],
+          'circle-radius': 8,
+          'circle-color': [
+            'match',
+            ['%', ['get', 'stopSequence'], 2],
+            0, CHRISTMAS_COLORS[0],
+            CHRISTMAS_COLORS[1],
+          ],
           'circle-stroke-color': '#ffffff',
-          'circle-stroke-width': 1.5,
+          'circle-stroke-width': 2,
+          'circle-opacity': 0.9,
         },
       });
+
+      // Twinkling lights animation - cycle colors every 1000ms
+      lightsIntervalRef.current = setInterval(() => {
+        if (!map.current || !map.current.getLayer('route-stops')) return;
+
+        colorOffsetRef.current = (colorOffsetRef.current + 1) % 2;
+        const offset = colorOffsetRef.current;
+
+        const colorExpr = [
+          'match',
+          ['%', ['get', 'stopSequence'], 2],
+          0, CHRISTMAS_COLORS[(0 + offset) % 2],
+          CHRISTMAS_COLORS[(1 + offset) % 2],
+        ];
+
+        map.current.setPaintProperty('route-stops', 'circle-color', colorExpr);
+        map.current.setPaintProperty('route-stops-glow', 'circle-color', colorExpr);
+      }, 1000);
 
       // Click handler for stop markers
       map.current.on('click', 'route-stops', (e) => {
@@ -231,6 +280,9 @@ function App() {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
+      if (lightsIntervalRef.current) {
+        clearInterval(lightsIntervalRef.current);
+      }
       // Clean up markers
       Object.values(markers.current).forEach((marker) => marker.remove());
       markers.current = {};
@@ -244,6 +296,7 @@ function App() {
 
   return (
     <div className="app-container">
+      <SnowfallOverlay mapRef={map} />
       <header className="title-bar">
         {emojis[0]} Festibus Tracker {emojis[1]}
       </header>
