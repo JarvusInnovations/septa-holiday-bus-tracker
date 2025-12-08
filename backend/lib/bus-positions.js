@@ -7,19 +7,24 @@ const SEPTA_VEHICLE_POSITIONS_URL =
 const POLL_INTERVAL_MS = 5000;
 const TEST_BUS_COUNT = 8;
 
-// Actual holiday bus IDs (decorated buses)
-const HOLIDAY_BUS_IDS = new Set([
-  '3090', // Southern: Beetlejuice
-  // '3410', // Allegheny: [none]
-  '3069', // Victory: The Best Gift EVer
-  '3019', // Callowhill: Santa Paws
-  // '3125', // Frontier: [none]
-  '3817', // Midvale: National Lampoon's Christmas Vacation
-  '3364', // Comly: Christman in Wonderland
-  '3160', // Frankford: Care Bear Party Bus
-  '9034', // Elmwood Trolley: Home Alone
-  '9087', // Elmwood Trolley: Holiday
-]);
+// Holiday bus metadata (decorated buses)
+const HOLIDAY_BUSES = {
+  // Buses:
+  '3090': { district: 'Southern', headsign: 'Beetlejuice' },
+  // '3410': { district: 'Allegheny', headsign: null },
+  '3069': { district: 'Victory', headsign: 'The Best Gift Ever' },
+  '3019': { district: 'Callowhill', headsign: 'Santa Paws' },
+  // '3125': { district: 'Frontier', headsign: null },
+  '3817': { district: 'Midvale', headsign: "National Lampoon's Christmas Vacation" },
+  '3364': { district: 'Comly', headsign: 'Christmas in Wonderland' },
+  '3160': { district: 'Frankford', headsign: 'Care Bear Party Bus' },
+  
+  // Trolleys:
+  '9034': { district: 'Elmwood', headsign: 'Home Alone' },
+  '9087': { district: 'Elmwood', headsign: 'Holiday' },
+};
+
+const HOLIDAY_BUS_IDS = new Set(Object.keys(HOLIDAY_BUSES));
 
 // Test bus IDs - dynamically selected on startup
 let testBusIds = new Set();
@@ -110,24 +115,29 @@ async function selectRandomTestBuses() {
 }
 
 // Convert positions array to GeoJSON FeatureCollection
-function positionsToGeoJSON(positions) {
+function positionsToGeoJSON(positions, mode) {
   return {
     type: 'FeatureCollection',
     features: positions
       .filter((bus) => bus.latitude && bus.longitude)
-      .map((bus) => ({
-        type: 'Feature',
-        geometry: {
-          type: 'Point',
-          coordinates: [bus.longitude, bus.latitude],
-        },
-        properties: {
-          busId: bus.busId,
-          routeId: bus.routeId,
-          color: bus.color,
-          bearing: bus.bearing,
-        },
-      })),
+      .map((bus) => {
+        const metadata = mode === 'holiday' ? HOLIDAY_BUSES[bus.busId] : null;
+        return {
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: [bus.longitude, bus.latitude],
+          },
+          properties: {
+            busId: bus.busId,
+            routeId: bus.routeId,
+            color: bus.color,
+            bearing: bus.bearing,
+            district: metadata?.district || null,
+            headsign: metadata?.headsign || null,
+          },
+        };
+      }),
   };
 }
 
@@ -207,11 +217,11 @@ async function fetchVehiclePositions() {
     // Atomic update: replace both caches together
     currentData = {
       holiday: {
-        buses: positionsToGeoJSON(holidayPositions),
+        buses: positionsToGeoJSON(holidayPositions, 'holiday'),
         routes: holidayRoutes,
       },
       test: {
-        buses: positionsToGeoJSON(testPositions),
+        buses: positionsToGeoJSON(testPositions, 'test'),
         routes: testRoutes,
       },
     };

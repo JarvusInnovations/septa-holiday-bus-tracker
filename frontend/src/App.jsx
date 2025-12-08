@@ -280,11 +280,20 @@ function App() {
         const props = feature.properties;
         const coordinates = feature.geometry.coordinates.slice();
 
+        let popupContent;
+        if (isTestMode) {
+          popupContent = `<strong>Test Bus ${props.busId}</strong><br/>Route ${props.routeId || 'N/A'}`;
+        } else {
+          popupContent = `<strong>${props.headsign || 'Holiday Bus'}</strong>`;
+          if (props.district) {
+            popupContent += `<br/>${props.district} District`;
+          }
+          popupContent += `<br/>Route ${props.routeId || 'N/A'}`;
+        }
+
         new maplibregl.Popup({ offset: [0, -20] })
           .setLngLat(coordinates)
-          .setHTML(
-            `<strong>${isTestMode ? 'Test' : 'Holiday'} Bus ${props.busId}</strong><br/>Route ${props.routeId || 'N/A'}`
-          )
+          .setHTML(popupContent)
           .addTo(map.current);
       });
 
