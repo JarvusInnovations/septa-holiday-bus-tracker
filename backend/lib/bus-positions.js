@@ -41,6 +41,7 @@ const HOLIDAY_COLORS = [
   '#00897b', // Teal
   '#f4511e', // Deep Orange
   '#c2185b', // Pink
+  '#78909c', // Silver
 ];
 
 const HOLIDAY_BUS_ID_LIST = Array.from(HOLIDAY_BUS_IDS);
