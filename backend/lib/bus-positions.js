@@ -9,14 +9,14 @@ const TEST_BUS_COUNT = 8;
 
 // Actual holiday bus IDs (decorated buses)
 const HOLIDAY_BUS_IDS = new Set([
-  '3090',
-  '3410',
-  '3069',
-  '3019',
-  '3125',
-  '3817',
-  '3364',
-  '3160',
+  '3090', // Southern: Beetlejuice
+  // '3410', // Allegheny: [none]
+  '3069', // Victory: The Best Gift EVer
+  '3019', // Callowhill: Santa Paws
+  // '3125', // Frontier: [none]
+  '3817', // Midvale: National Lampoon's Christmas Vacation
+  '3364', // Comly: Christman in Wonderland
+  '3160', // Frankford: Care Bear Party Bus
 ]);
 
 // Test bus IDs - dynamically selected on startup
