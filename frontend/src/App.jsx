@@ -328,7 +328,10 @@ function App() {
           setBusNearby(anyBusNearby);
 
           // Update the set of buses in range (for next check)
-          busesInRangeRef.current = currentBusesInRange;
+          // Only track when sound is enabled, so toggling sound back on will re-trigger
+          if (soundEnabledRef.current) {
+            busesInRangeRef.current = currentBusesInRange;
+          }
 
           // Auto-fit to all buses and route shapes on first load
           if (!hasInitialFit.current && data.buses.length > 0) {
@@ -410,6 +413,8 @@ function App() {
     if (!newValue && audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
+      // Clear tracked buses so they'll trigger sound again when re-enabled
+      busesInRangeRef.current = new Set();
     }
   };
 
