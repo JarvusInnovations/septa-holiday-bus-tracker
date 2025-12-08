@@ -237,7 +237,7 @@ function App() {
   return (
     <div className="app-container">
       <header className="title-bar">
-        🎄 Holiday Bus Tracker 🎅
+        ❄️ Festibus Tracker 🎁
       </header>
       <div ref={mapContainer} className="map-container" />
     </div>
