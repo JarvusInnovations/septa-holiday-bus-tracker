@@ -5,7 +5,7 @@ import { fetchTripUpdates } from './trip-updates.js';
 const SEPTA_VEHICLE_POSITIONS_URL =
   'https://www3.septa.org/gtfsrt/septa-pa-us/Vehicle/rtVehiclePosition.pb';
 const POLL_INTERVAL_MS = 5000;
-const TEST_BUS_COUNT = 8;
+const TEST_BUS_COUNT = 6;
 
 // Actual holiday bus IDs (decorated buses)
 const HOLIDAY_BUS_IDS = new Set([
