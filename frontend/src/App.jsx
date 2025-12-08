@@ -43,7 +43,6 @@ function App() {
   const [busNearby, setBusNearby] = useState(false);
   const mapContainer = useRef(null);
   const map = useRef(null);
-  const markers = useRef({});
   const intervalRef = useRef(null);
   const hasInitialFit = useRef(false);
   const colorOffsetRef = useRef(0);
@@ -109,6 +108,46 @@ function App() {
           { enableHighAccuracy: true, maximumAge: 10000 }
         );
       }
+      // Add GeoJSON source for buses
+      map.current.addSource('buses', {
+        type: 'geojson',
+        data: EMPTY_GEOJSON,
+      });
+
+      // Load bus icon as SDF for dynamic coloring
+      (async () => {
+        try {
+          const response = await fetch('/bus-icon.png');
+          const blob = await response.blob();
+          const image = await createImageBitmap(blob);
+
+          if (!map.current) return;
+
+          map.current.addImage('bus-icon', image, { sdf: true });
+
+          // Bus markers layer using SDF icon
+          map.current.addLayer({
+            id: 'bus-markers',
+            type: 'symbol',
+            source: 'buses',
+            layout: {
+              'icon-image': 'bus-icon',
+              'icon-size': 0.25,
+              'icon-anchor': 'bottom',
+              'icon-allow-overlap': true,
+            },
+            paint: {
+              'icon-color': ['get', 'color'],
+              'icon-halo-color': '#ffffff',
+              'icon-halo-width': 2,
+            },
+          });
+
+        } catch (e) {
+          console.error('Error loading bus icon:', e);
+        }
+      })();
+
       // Add GeoJSON source for routes
       map.current.addSource('routes', {
         type: 'geojson',
@@ -241,6 +280,28 @@ function App() {
         map.current.getCanvas().style.cursor = '';
       });
 
+      // Click handler for bus markers
+      map.current.on('click', 'bus-markers', (e) => {
+        const feature = e.features[0];
+        const props = feature.properties;
+        const coordinates = feature.geometry.coordinates.slice();
+
+        new maplibregl.Popup({ offset: [0, -20] })
+          .setLngLat(coordinates)
+          .setHTML(
+            `<strong>${isTestMode ? 'Test' : 'Holiday'} Bus ${props.busId}</strong><br/>Route ${props.routeId || 'N/A'}`
+          )
+          .addTo(map.current);
+      });
+
+      // Change cursor on hover for bus markers
+      map.current.on('mouseenter', 'bus-markers', () => {
+        map.current.getCanvas().style.cursor = 'pointer';
+      });
+      map.current.on('mouseleave', 'bus-markers', () => {
+        map.current.getCanvas().style.cursor = '';
+      });
+
       // Data fetching function
       async function fetchData() {
         try {
@@ -252,74 +313,27 @@ function App() {
             return;
           }
 
-          // Update route lines and stops
+          // Update map sources with GeoJSON data
           map.current.getSource('routes').setData(data.routes);
-
-          // Update bus markers
-          const currentBusIds = new Set();
-
-          for (const bus of data.buses) {
-            currentBusIds.add(bus.busId);
-
-            if (bus.latitude && bus.longitude) {
-              if (markers.current[bus.busId]) {
-                markers.current[bus.busId].setLngLat([bus.longitude, bus.latitude]);
-              } else {
-                const el = document.createElement('div');
-                el.className = 'bus-marker';
-                el.style.cssText = `
-                  width: 24px;
-                  height: 24px;
-                  background-color: ${bus.color || '#e53935'};
-                  border: 2px solid white;
-                  border-radius: 50%;
-                  cursor: pointer;
-                  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-                `;
-
-                const marker = new maplibregl.Marker({ element: el })
-                  .setLngLat([bus.longitude, bus.latitude])
-                  .setPopup(
-                    new maplibregl.Popup().setHTML(
-                      `<strong>${isTestMode ? 'Test' : 'Holiday'} Bus ${bus.busId}</strong><br/>Route ${bus.routeId || 'N/A'}`
-                    )
-                  )
-                  .addTo(map.current);
-
-                markers.current[bus.busId] = marker;
-              }
-            }
-          }
-
-          // Remove markers for buses no longer in the feed
-          for (const busId of Object.keys(markers.current)) {
-            if (!currentBusIds.has(busId)) {
-              markers.current[busId].remove();
-              delete markers.current[busId];
-            }
-          }
+          map.current.getSource('buses').setData(data.buses);
 
           // Check proximity to user location
           const userLoc = userLocationRef.current;
           const currentBusesInRange = new Set();
           let anyBusNearby = false;
 
-          for (const bus of data.buses) {
-            if (bus.latitude && bus.longitude) {
-              const distance = getDistanceMeters(
-                userLoc.lat, userLoc.lng,
-                bus.latitude, bus.longitude
-              );
+          for (const feature of data.buses.features) {
+            const [lng, lat] = feature.geometry.coordinates;
+            const distance = getDistanceMeters(userLoc.lat, userLoc.lng, lat, lng);
 
-              if (distance <= PROXIMITY_THRESHOLD_METERS) {
-                anyBusNearby = true;
-                currentBusesInRange.add(bus.busId);
+            if (distance <= PROXIMITY_THRESHOLD_METERS) {
+              anyBusNearby = true;
+              currentBusesInRange.add(feature.properties.busId);
 
-                // Play sound if this bus just entered range and sound is enabled
-                if (!busesInRangeRef.current.has(bus.busId) && soundEnabledRef.current && audioRef.current) {
-                  audioRef.current.currentTime = 0;
-                  audioRef.current.play().catch(() => {});
-                }
+              // Play sound if this bus just entered range and sound is enabled
+              if (!busesInRangeRef.current.has(feature.properties.busId) && soundEnabledRef.current && audioRef.current) {
+                audioRef.current.currentTime = 0;
+                audioRef.current.play().catch(() => {});
               }
             }
           }
@@ -334,16 +348,14 @@ function App() {
           }
 
           // Auto-fit to all buses and route shapes on first load
-          if (!hasInitialFit.current && data.buses.length > 0) {
+          if (!hasInitialFit.current && data.buses.features.length > 0) {
             const bounds = new maplibregl.LngLatBounds();
             let hasValidBounds = false;
 
             // Include bus positions
-            for (const bus of data.buses) {
-              if (bus.latitude && bus.longitude) {
-                bounds.extend([bus.longitude, bus.latitude]);
-                hasValidBounds = true;
-              }
+            for (const feature of data.buses.features) {
+              bounds.extend(feature.geometry.coordinates);
+              hasValidBounds = true;
             }
 
             // Include route shape coordinates
@@ -381,9 +393,6 @@ function App() {
       if (lightsIntervalRef.current) {
         clearInterval(lightsIntervalRef.current);
       }
-      // Clean up markers
-      Object.values(markers.current).forEach((marker) => marker.remove());
-      markers.current = {};
       // Clean up map
       if (map.current) {
         map.current.remove();

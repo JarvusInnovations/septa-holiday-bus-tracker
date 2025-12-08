@@ -107,14 +107,36 @@ async function selectRandomTestBuses() {
   }
 }
 
+// Convert positions array to GeoJSON FeatureCollection
+function positionsToGeoJSON(positions) {
+  return {
+    type: 'FeatureCollection',
+    features: positions
+      .filter((bus) => bus.latitude && bus.longitude)
+      .map((bus) => ({
+        type: 'Feature',
+        geometry: {
+          type: 'Point',
+          coordinates: [bus.longitude, bus.latitude],
+        },
+        properties: {
+          busId: bus.busId,
+          routeId: bus.routeId,
+          color: bus.color,
+          bearing: bus.bearing,
+        },
+      })),
+  };
+}
+
 // Store positions and routes for both modes
 let currentData = {
   holiday: {
-    positions: [],
+    buses: { type: 'FeatureCollection', features: [] },
     routes: { type: 'FeatureCollection', features: [] },
   },
   test: {
-    positions: [],
+    buses: { type: 'FeatureCollection', features: [] },
     routes: { type: 'FeatureCollection', features: [] },
   },
 };
@@ -182,8 +204,14 @@ async function fetchVehiclePositions() {
 
     // Atomic update: replace both caches together
     currentData = {
-      holiday: { positions: holidayPositions, routes: holidayRoutes },
-      test: { positions: testPositions, routes: testRoutes },
+      holiday: {
+        buses: positionsToGeoJSON(holidayPositions),
+        routes: holidayRoutes,
+      },
+      test: {
+        buses: positionsToGeoJSON(testPositions),
+        routes: testRoutes,
+      },
     };
 
     console.log(
@@ -194,8 +222,8 @@ async function fetchVehiclePositions() {
   }
 }
 
-export function getPositions(mode = 'holiday') {
-  return currentData[mode]?.positions || [];
+export function getBuses(mode = 'holiday') {
+  return currentData[mode]?.buses || { type: 'FeatureCollection', features: [] };
 }
 
 export function getRoutes(mode = 'holiday') {
