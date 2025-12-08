@@ -244,6 +244,7 @@ export function buildRoutesGeoJSON(buses, currentTime) {
           predictedArrivalTime: stop.predictedArrivalTime,
           arrivalDelay: stop.arrivalDelay,
           isRealTime: stop.isRealTime,
+          stopSequence: stop.stopSequence,
         },
         geometry: {
           type: 'Point',
