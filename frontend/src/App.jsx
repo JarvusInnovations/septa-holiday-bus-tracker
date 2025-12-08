@@ -91,6 +91,24 @@ function App() {
         const lngLat = userMarkerRef.current.getLngLat();
         userLocationRef.current = { lng: lngLat.lng, lat: lngLat.lat };
       });
+
+      // Use real geolocation in non-test mode
+      if (!isTestMode && 'geolocation' in navigator) {
+        navigator.geolocation.watchPosition(
+          (position) => {
+            const { longitude, latitude } = position.coords;
+            userLocationRef.current = { lng: longitude, lat: latitude };
+            userMarkerRef.current.setLngLat([longitude, latitude]);
+            // Disable dragging when using real location
+            userMarkerRef.current.setDraggable(false);
+          },
+          (error) => {
+            console.log('Geolocation error, using draggable pin:', error.message);
+            // Keep draggable pin as fallback
+          },
+          { enableHighAccuracy: true, maximumAge: 10000 }
+        );
+      }
       // Add GeoJSON source for routes
       map.current.addSource('routes', {
         type: 'geojson',
@@ -373,13 +391,10 @@ function App() {
 
   const unlockAudio = () => {
     if (audioRef.current) {
-      // Play a short preview to unlock audio context
-      audioRef.current.volume = 0.3;
+      // Play a preview so they know what to listen for
+      audioRef.current.volume = 0.5;
       audioRef.current.currentTime = 0;
       audioRef.current.play().catch(() => {});
-      setTimeout(() => {
-        if (audioRef.current) audioRef.current.volume = 0.5;
-      }, 1000);
     }
     setAudioUnlocked(true);
     setSoundEnabled(true);
@@ -399,7 +414,7 @@ function App() {
           <div className="audio-unlock-content">
             <div className="audio-unlock-icon">🔔</div>
             <div className="audio-unlock-text">Tap to enable sound alerts</div>
-            <div className="audio-unlock-subtext">Get notified when a Festibus is nearby!</div>
+            <div className="audio-unlock-subtext">Get notified when a Festibus is nearby!<br/>You'll hear a preview of the jingle now.</div>
           </div>
         </div>
       )}
