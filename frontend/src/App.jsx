@@ -405,6 +405,12 @@ function App() {
     const newValue = !soundEnabled;
     setSoundEnabled(newValue);
     soundEnabledRef.current = newValue;
+
+    // Stop any currently playing sound when disabling
+    if (!newValue && audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
   };
 
   return (
