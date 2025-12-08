@@ -16,6 +16,20 @@ const EMPTY_GEOJSON = { type: 'FeatureCollection', features: [] };
 const HOLIDAY_EMOJIS = ['🎅', '🎄', '🎁', '✨', '☃︎', '❄️', '🦌', '☃️', '🎀', '🕯️', '🎅🏼', '🤶'];
 
 const CHRISTMAS_COLORS = ['#228b22', '#c41e3a']; // Green, Red
+const PROXIMITY_THRESHOLD_METERS = 250; // ~2-3 city blocks
+
+// Haversine formula to calculate distance between two lat/lng points in meters
+function getDistanceMeters(lat1, lon1, lat2, lon2) {
+  const R = 6371000; // Earth's radius in meters
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
 
 function getRandomEmojis() {
   const shuffled = [...HOLIDAY_EMOJIS].sort(() => Math.random() - 0.5);
@@ -24,6 +38,9 @@ function getRandomEmojis() {
 
 function App() {
   const [emojis] = useState(() => getRandomEmojis());
+  const [soundEnabled, setSoundEnabled] = useState(false);
+  const [audioUnlocked, setAudioUnlocked] = useState(false);
+  const [busNearby, setBusNearby] = useState(false);
   const mapContainer = useRef(null);
   const map = useRef(null);
   const markers = useRef({});
@@ -31,6 +48,11 @@ function App() {
   const hasInitialFit = useRef(false);
   const colorOffsetRef = useRef(0);
   const lightsIntervalRef = useRef(null);
+  const userMarkerRef = useRef(null);
+  const userLocationRef = useRef({ lng: PHILADELPHIA_CENTER[0], lat: PHILADELPHIA_CENTER[1] });
+  const audioRef = useRef(null);
+  const busesInRangeRef = useRef(new Set()); // Track buses that have triggered sound
+  const soundEnabledRef = useRef(false);
 
   useEffect(() => {
     if (map.current) return;
@@ -44,7 +66,49 @@ function App() {
 
     map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
 
+    // Initialize audio element
+    audioRef.current = new Audio('/sounds/bells.mp3');
+    audioRef.current.volume = 0.5;
+
     map.current.on('load', () => {
+      // Add draggable "You Are Here" marker
+      const userEl = document.createElement('div');
+      userEl.innerHTML = '📍';
+      userEl.style.cssText = `
+        font-size: 32px;
+        cursor: grab;
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+      `;
+
+      userMarkerRef.current = new maplibregl.Marker({
+        element: userEl,
+        draggable: true,
+      })
+        .setLngLat([userLocationRef.current.lng, userLocationRef.current.lat])
+        .addTo(map.current);
+
+      userMarkerRef.current.on('dragend', () => {
+        const lngLat = userMarkerRef.current.getLngLat();
+        userLocationRef.current = { lng: lngLat.lng, lat: lngLat.lat };
+      });
+
+      // Use real geolocation in non-test mode
+      if (!isTestMode && 'geolocation' in navigator) {
+        navigator.geolocation.watchPosition(
+          (position) => {
+            const { longitude, latitude } = position.coords;
+            userLocationRef.current = { lng: longitude, lat: latitude };
+            userMarkerRef.current.setLngLat([longitude, latitude]);
+            // Disable dragging when using real location
+            userMarkerRef.current.setDraggable(false);
+          },
+          (error) => {
+            console.log('Geolocation error, using draggable pin:', error.message);
+            // Keep draggable pin as fallback
+          },
+          { enableHighAccuracy: true, maximumAge: 10000 }
+        );
+      }
       // Add GeoJSON source for routes
       map.current.addSource('routes', {
         type: 'geojson',
@@ -235,6 +299,40 @@ function App() {
             }
           }
 
+          // Check proximity to user location
+          const userLoc = userLocationRef.current;
+          const currentBusesInRange = new Set();
+          let anyBusNearby = false;
+
+          for (const bus of data.buses) {
+            if (bus.latitude && bus.longitude) {
+              const distance = getDistanceMeters(
+                userLoc.lat, userLoc.lng,
+                bus.latitude, bus.longitude
+              );
+
+              if (distance <= PROXIMITY_THRESHOLD_METERS) {
+                anyBusNearby = true;
+                currentBusesInRange.add(bus.busId);
+
+                // Play sound if this bus just entered range and sound is enabled
+                if (!busesInRangeRef.current.has(bus.busId) && soundEnabledRef.current && audioRef.current) {
+                  audioRef.current.currentTime = 0;
+                  audioRef.current.play().catch(() => {});
+                }
+              }
+            }
+          }
+
+          // Update state for title bar glow
+          setBusNearby(anyBusNearby);
+
+          // Update the set of buses in range (for next check)
+          // Only track when sound is enabled, so toggling sound back on will re-trigger
+          if (soundEnabledRef.current) {
+            busesInRangeRef.current = currentBusesInRange;
+          }
+
           // Auto-fit to all buses and route shapes on first load
           if (!hasInitialFit.current && data.buses.length > 0) {
             const bounds = new maplibregl.LngLatBounds();
@@ -294,12 +392,61 @@ function App() {
     };
   }, []);
 
+  const unlockAudio = () => {
+    if (audioRef.current) {
+      // Play a preview so they know what to listen for
+      audioRef.current.volume = 0.5;
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(() => {});
+    }
+    setAudioUnlocked(true);
+    setSoundEnabled(true);
+    soundEnabledRef.current = true;
+  };
+
+  const toggleSound = () => {
+    const newValue = !soundEnabled;
+    setSoundEnabled(newValue);
+    soundEnabledRef.current = newValue;
+
+    // Stop any currently playing sound when disabling
+    if (!newValue && audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      // Clear tracked buses so they'll trigger sound again when re-enabled
+      busesInRangeRef.current = new Set();
+    }
+  };
+
   return (
     <div className="app-container">
+      {!audioUnlocked && (
+        <div className="audio-unlock-overlay" onClick={unlockAudio}>
+          <div className="audio-unlock-content">
+            <div className="audio-unlock-icon">🔔</div>
+            <div className="audio-unlock-text">Tap to enable sound alerts</div>
+            <div className="audio-unlock-subtext">Get notified when a Festibus is nearby!<br/>You'll hear a preview of the jingle now.</div>
+          </div>
+        </div>
+      )}
       <SnowfallOverlay mapRef={map} />
       <header className="title-bar">
-        {emojis[0]} Festibus Tracker {emojis[1]}
+        <span className="title-text">{emojis[0]} Festibus Tracker {emojis[1]}</span>
+        {audioUnlocked && (
+          <button
+            className={`sound-toggle ${soundEnabled ? 'sound-on' : ''}`}
+            onClick={toggleSound}
+            title={soundEnabled ? 'Disable jingle alerts' : 'Enable jingle alerts'}
+          >
+            {soundEnabled ? '🔔' : '🔕'}
+          </button>
+        )}
       </header>
+      {busNearby && (
+        <div className="nearby-pill">
+          🎄 Festibus nearby! 🎄
+        </div>
+      )}
       <div ref={mapContainer} className="map-container" />
     </div>
   );
