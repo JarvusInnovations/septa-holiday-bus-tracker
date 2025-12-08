@@ -30,8 +30,6 @@ function App() {
   const hasInitialFit = useRef(false);
   const colorOffsetRef = useRef(0);
   const lightsIntervalRef = useRef(null);
-  const userMarkerRef = useRef(null);
-  const userLocationRef = useRef({ lng: PHILADELPHIA_CENTER[0], lat: PHILADELPHIA_CENTER[1] });
 
   useEffect(() => {
     if (map.current) return;
@@ -46,44 +44,6 @@ function App() {
     map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
 
     map.current.on('load', () => {
-      // Add draggable "You Are Here" marker
-      const userEl = document.createElement('div');
-      userEl.innerHTML = '📍';
-      userEl.style.cssText = `
-        font-size: 32px;
-        cursor: grab;
-        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
-      `;
-
-      userMarkerRef.current = new maplibregl.Marker({
-        element: userEl,
-        draggable: true,
-      })
-        .setLngLat([userLocationRef.current.lng, userLocationRef.current.lat])
-        .addTo(map.current);
-
-      userMarkerRef.current.on('dragend', () => {
-        const lngLat = userMarkerRef.current.getLngLat();
-        userLocationRef.current = { lng: lngLat.lng, lat: lngLat.lat };
-      });
-
-      // Use real geolocation in non-test mode
-      if (!isTestMode && 'geolocation' in navigator) {
-        navigator.geolocation.watchPosition(
-          (position) => {
-            const { longitude, latitude } = position.coords;
-            userLocationRef.current = { lng: longitude, lat: latitude };
-            userMarkerRef.current.setLngLat([longitude, latitude]);
-            // Disable dragging when using real location
-            userMarkerRef.current.setDraggable(false);
-          },
-          (error) => {
-            console.log('Geolocation error, using draggable pin:', error.message);
-            // Keep draggable pin as fallback
-          },
-          { enableHighAccuracy: true, maximumAge: 10000 }
-        );
-      }
       // Add GeoJSON source for buses
       map.current.addSource('buses', {
         type: 'geojson',
