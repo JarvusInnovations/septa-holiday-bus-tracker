@@ -42,6 +42,17 @@ function App() {
     });
 
     map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
+    map.current.addControl(
+      new maplibregl.GeolocateControl({
+        positionOptions: {
+          enableHighAccuracy: true,
+        },
+        trackUserLocation: true,
+        showAccuracyCircle: true,
+        showUserLocation: true
+      }),
+      'top-right'
+    );
 
     map.current.on('load', () => {
       // Add GeoJSON source for buses
