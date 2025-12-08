@@ -117,13 +117,10 @@ function App() {
       // Load bus icon as SDF for dynamic coloring
       (async () => {
         try {
-          const response = await fetch('/bus-icon.png');
-          const blob = await response.blob();
-          const image = await createImageBitmap(blob);
-
+          const image = await map.current.loadImage('/bus-icon.sdf.png');
           if (!map.current) return;
 
-          map.current.addImage('bus-icon', image, { sdf: true });
+          map.current.addImage('bus-icon', image.data, { sdf: true });
 
           // Bus markers layer using SDF icon
           map.current.addLayer({
@@ -138,11 +135,8 @@ function App() {
             },
             paint: {
               'icon-color': ['get', 'color'],
-              'icon-halo-color': '#ffffff',
-              'icon-halo-width': 2,
             },
           });
-
         } catch (e) {
           console.error('Error loading bus icon:', e);
         }
