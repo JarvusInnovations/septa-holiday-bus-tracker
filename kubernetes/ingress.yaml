@@ -17,6 +17,26 @@ spec:
                 name: septa-holiday-bus-tracker
                 port:
                   number: 80
+    - host: festibus.septa.mobi
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: septa-holiday-bus-tracker
+                port:
+                  number: 80
+    - host: festibuses.septa.mobi
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: septa-holiday-bus-tracker
+                port:
+                  number: 80
     - host: septa-holiday-bus-tracker.live.k8s.jarv.us
       http:
         paths:
@@ -30,6 +50,8 @@ spec:
   tls:
     - hosts:
         - holiday.septa.mobi
+        - festibus.septa.mobi
+        - festibuses.septa.mobi
       secretName: septa-holiday-bus-tracker-tls
     - hosts:
         - septa-holiday-bus-tracker.live.k8s.jarv.us
