@@ -131,30 +131,14 @@
   background: #f9f9f9;
 }
 
-.vehicle-type {
-  display: inline-block;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.vehicle-type.bus {
-  background: #e3f2fd;
-  color: #1565c0;
-}
-
-.vehicle-type.trolley {
-  background: #f3e5f5;
-  color: #7b1fa2;
-}
-
-/* Vehicle legend */
-.vehicle-legend {
+.vehicle-id-cell {
   display: flex;
-  gap: 12px;
-  margin-top: 10px;
-  justify-content: flex-start;
+  align-items: center;
+  gap: 6px;
+}
+
+.vehicle-id {
+  font-weight: 500;
 }
 
 /* Overlay */

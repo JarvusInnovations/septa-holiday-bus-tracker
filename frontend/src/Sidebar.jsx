@@ -1,15 +1,17 @@
 import './Sidebar.css';
+import BusIcon from './icons/BusIcon';
+import TrolleyIcon from './icons/TrolleyIcon';
 
 const HOLIDAY_VEHICLES = [
-  { id: '3090', type: 'bus', district: 'Southern', name: 'Beetlejuice' },
-  { id: '3069', type: 'bus', district: 'Victory', name: 'The Best Gift Ever' },
-  { id: '3019', type: 'bus', district: 'Callowhill', name: 'Santa Paws' },
-  { id: '3817', type: 'bus', district: 'Midvale', name: "National Lampoon's Christmas Vacation" },
-  { id: '3364', type: 'bus', district: 'Comly', name: 'Christmas in Wonderland' },
-  { id: '3160', type: 'bus', district: 'Frankford', name: 'Care Bear Party Bus' },
-  { id: '9034', type: 'trolley', district: 'Elmwood', name: 'Home Alone' },
-  { id: '9087', type: 'trolley', district: 'Elmwood', name: 'Home' },
-  { id: '9053', type: 'trolley', district: 'Callowhill', name: 'Frosty the Snow Mobile' },
+  { id: '3090', type: 'bus', district: 'Southern', name: 'Beetlejuice', color: '#e53935' },
+  { id: '3069', type: 'bus', district: 'Victory', name: 'The Best Gift Ever', color: '#43a047' },
+  { id: '3019', type: 'bus', district: 'Callowhill', name: 'Santa Paws', color: '#1e88e5' },
+  { id: '3817', type: 'bus', district: 'Midvale', name: "National Lampoon's Christmas Vacation", color: '#fdd835' },
+  { id: '3364', type: 'bus', district: 'Comly', name: 'Christmas in Wonderland', color: '#8e24aa' },
+  { id: '3160', type: 'bus', district: 'Frankford', name: 'Care Bear Party Bus', color: '#00897b' },
+  { id: '9034', type: 'trolley', district: 'Elmwood', name: 'Home Alone', color: '#f4511e' },
+  { id: '9087', type: 'trolley', district: 'Elmwood', name: 'Home', color: '#c2185b' },
+  { id: '9053', type: 'trolley', district: 'Callowhill', name: 'Frosty the Snow Mobile', color: '#78909c' },
 ];
 
 export default function Sidebar({ isOpen, onClose }) {
@@ -47,10 +49,13 @@ export default function Sidebar({ isOpen, onClose }) {
             <tbody>
               {HOLIDAY_VEHICLES.map((vehicle) => (
                 <tr key={vehicle.id}>
-                  <td>
-                    <span className={`vehicle-type ${vehicle.type}`}>
-                      {vehicle.id}
-                    </span>
+                  <td className="vehicle-id-cell">
+                    {vehicle.type === 'bus' ? (
+                      <BusIcon color={vehicle.color} size={16} />
+                    ) : (
+                      <TrolleyIcon color={vehicle.color} size={16} />
+                    )}
+                    <span className="vehicle-id">{vehicle.id}</span>
                   </td>
                   <td>{vehicle.district}</td>
                   <td>{vehicle.name}</td>
@@ -58,10 +63,6 @@ export default function Sidebar({ isOpen, onClose }) {
               ))}
             </tbody>
           </table>
-          <div className="vehicle-legend">
-            <span className="vehicle-type bus">Bus</span>
-            <span className="vehicle-type trolley">Trolley</span>
-          </div>
         </div>
       </aside>
 

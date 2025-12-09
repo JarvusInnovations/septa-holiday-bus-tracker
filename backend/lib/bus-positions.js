@@ -10,19 +10,17 @@ const TEST_BUS_COUNT = 9;
 // Holiday bus metadata (decorated buses)
 const HOLIDAY_BUSES = {
   // Buses:
-  '3090': { district: 'Southern', headsign: 'Beetlejuice' },
-  // '3410': { district: 'Allegheny', headsign: null },
-  '3069': { district: 'Victory', headsign: 'The Best Gift Ever' },
-  '3019': { district: 'Callowhill', headsign: 'Santa Paws' },
-  // '3125': { district: 'Frontier', headsign: null },
-  '3817': { district: 'Midvale', headsign: "National Lampoon's Christmas Vacation" },
-  '3364': { district: 'Comly', headsign: 'Christmas in Wonderland' },
-  '3160': { district: 'Frankford', headsign: 'Care Bear Party Bus' },
+  '3090': { district: 'Southern', headsign: 'Beetlejuice', color: '#e53935' },
+  '3069': { district: 'Victory', headsign: 'The Best Gift Ever', color: '#43a047' },
+  '3019': { district: 'Callowhill', headsign: 'Santa Paws', color: '#1e88e5' },
+  '3817': { district: 'Midvale', headsign: "National Lampoon's Christmas Vacation", color: '#fdd835' },
+  '3364': { district: 'Comly', headsign: 'Christmas in Wonderland', color: '#8e24aa' },
+  '3160': { district: 'Frankford', headsign: 'Care Bear Party Bus', color: '#00897b' },
 
   // Trolleys:
-  '9034': { district: 'Elmwood', headsign: 'Home Alone' },
-  '9087': { district: 'Elmwood', headsign: 'Home' },
-  '9053': { district: 'Callowhill', headsign: 'Frosty the Snow Mobile' },
+  '9034': { district: 'Elmwood', headsign: 'Home Alone', color: '#f4511e' },
+  '9087': { district: 'Elmwood', headsign: 'Home', color: '#c2185b' },
+  '9053': { district: 'Callowhill', headsign: 'Frosty the Snow Mobile', color: '#78909c' },
 };
 
 const HOLIDAY_BUS_IDS = new Set(Object.keys(HOLIDAY_BUSES));
@@ -31,25 +29,15 @@ const HOLIDAY_BUS_IDS = new Set(Object.keys(HOLIDAY_BUSES));
 let testBusIds = new Set();
 let testBusIdList = [];
 
-// Holiday colors mapped to bus IDs
-const HOLIDAY_COLORS = [
-  '#e53935', // Red
-  '#43a047', // Green
-  '#1e88e5', // Blue
-  '#fdd835', // Gold
-  '#8e24aa', // Purple
-  '#00897b', // Teal
-  '#f4511e', // Deep Orange
-  '#c2185b', // Pink
-  '#78909c', // Silver
-];
-
-const HOLIDAY_BUS_ID_LIST = Array.from(HOLIDAY_BUS_IDS);
+// Extract colors from HOLIDAY_BUSES for test mode
+const HOLIDAY_COLORS = Object.values(HOLIDAY_BUSES).map(b => b.color);
 
 function getBusColor(busId, mode) {
-  const busIdList = mode === 'test' ? testBusIdList : HOLIDAY_BUS_ID_LIST;
-  const index = busIdList.indexOf(busId);
-  return HOLIDAY_COLORS[index % HOLIDAY_COLORS.length];
+  if (mode === 'test') {
+    const index = testBusIdList.indexOf(busId);
+    return HOLIDAY_COLORS[index % HOLIDAY_COLORS.length];
+  }
+  return HOLIDAY_BUSES[busId]?.color || HOLIDAY_COLORS[0];
 }
 
 /**
