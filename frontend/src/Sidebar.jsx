@@ -12,6 +12,7 @@ const HOLIDAY_VEHICLES = [
   { id: '9034', type: 'trolley', district: 'Elmwood', name: 'Home Alone', color: '#f4511e' },
   { id: '9087', type: 'trolley', district: 'Elmwood', name: 'Holiday', color: '#c2185b' },
   { id: '9053', type: 'trolley', district: 'Callowhill', name: 'Frosty the Snow Mobile', color: '#78909c' },
+  { id: '9009', type: 'trolley', district: 'Woodland', name: 'Star Wars', color: '#7cb342' },
 ];
 
 export default function Sidebar({ isOpen, onClose }) {

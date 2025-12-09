@@ -6,7 +6,7 @@ const SEPTA_VEHICLE_POSITIONS_URL =
   'https://www3.septa.org/gtfsrt/septa-pa-us/Vehicle/rtVehiclePosition.pb';
 const POLL_INTERVAL_MS = 5000;
 const TEST_BUS_COUNT = 6;
-const TEST_TROLLEY_COUNT = 3;
+const TEST_TROLLEY_COUNT = 4;
 
 // Holiday bus metadata (decorated buses)
 const HOLIDAY_BUSES = {
@@ -22,6 +22,7 @@ const HOLIDAY_BUSES = {
   '9034': { district: 'Elmwood', headsign: 'Home Alone', color: '#f4511e' },
   '9087': { district: 'Elmwood', headsign: 'Holiday', color: '#c2185b' },
   '9053': { district: 'Callowhill', headsign: 'Frosty the Snow Mobile', color: '#78909c' },
+  '9009': { district: 'Woodland', headsign: 'Star Wars', color: '#7cb342' },
 };
 
 const HOLIDAY_BUS_IDS = new Set(Object.keys(HOLIDAY_BUSES));
