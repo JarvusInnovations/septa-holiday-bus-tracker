@@ -47,7 +47,8 @@ function App() {
 
     map.current = new maplibregl.Map({
       container: mapContainer.current,
-      style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+      style: 'https://api.maptiler.com/maps/dataviz-dark/style.json?key=f2WqYl7JJ1HgexDxO177',
+      // style: 'https://api.maptiler.com/maps/basic-v2-dark/style.json?key=f2WqYl7JJ1HgexDxO177',
       center: PHILADELPHIA_CENTER,
       zoom: 11,
     });
