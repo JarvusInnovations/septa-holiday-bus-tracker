@@ -17,12 +17,19 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  gap: 12px;
   position: relative;
   transition: box-shadow 0.3s ease;
 }
 
 .title-text {
   flex: 1;
+  text-align: center;
+}
+
+.title-bar-spacer {
+  width: 32px;
+  flex-shrink: 0;
 }
 
 .map-container {
