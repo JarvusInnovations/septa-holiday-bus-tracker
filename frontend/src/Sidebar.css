@@ -114,10 +114,19 @@
   font-size: 0.85rem;
 }
 
-.vehicle-table th,
+.vehicle-table th {
+  padding: 8px 6px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
 .vehicle-table td {
   padding: 8px 6px;
   text-align: left;
+  vertical-align: middle;
+}
+
+.vehicle-table tbody tr {
   border-bottom: 1px solid #eee;
 }
 
@@ -132,13 +141,17 @@
 }
 
 .vehicle-id-cell {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  white-space: nowrap;
+}
+
+.vehicle-id-cell svg {
+  vertical-align: middle;
+  margin-right: 6px;
 }
 
 .vehicle-id {
   font-weight: 500;
+  vertical-align: middle;
 }
 
 /* Overlay */
