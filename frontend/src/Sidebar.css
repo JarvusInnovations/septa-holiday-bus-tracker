@@ -154,6 +154,24 @@
   vertical-align: middle;
 }
 
+.show-map-btn {
+  width: 100%;
+  margin-top: 20px;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #c41e3a 0%, #228b22 100%);
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.show-map-btn:hover {
+  opacity: 0.9;
+}
+
 /* Overlay */
 .sidebar-overlay {
   position: fixed;

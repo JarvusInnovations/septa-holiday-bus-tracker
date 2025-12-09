@@ -20,7 +20,7 @@ export default function Sidebar({ isOpen, onClose }) {
     <>
       <aside className={`sidebar ${isOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
         <header className="sidebar-header">
-          <h2>About</h2>
+          <h2>Welcome!</h2>
           <button
             className="sidebar-close-btn"
             onClick={onClose}
@@ -64,6 +64,10 @@ export default function Sidebar({ isOpen, onClose }) {
               ))}
             </tbody>
           </table>
+
+          <button className="show-map-btn" onClick={onClose}>
+            Show me the map! »
+          </button>
         </div>
       </aside>
 
