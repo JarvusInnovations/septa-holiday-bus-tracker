@@ -72,21 +72,30 @@ function App() {
         data: EMPTY_GEOJSON,
       });
 
-      // Load bus icon as SDF for dynamic coloring
+      // Load bus and trolley icons as SDF for dynamic coloring
       (async () => {
         try {
-          const image = await map.current.loadImage('/bus-icon.sdf.png');
+          const [busImage, trolleyImage] = await Promise.all([
+            map.current.loadImage('/bus-icon.sdf.png'),
+            map.current.loadImage('/trolley-icon.sdf.png'),
+          ]);
           if (!map.current) return;
 
-          map.current.addImage('bus-icon', image.data, { sdf: true });
+          map.current.addImage('bus-icon', busImage.data, { sdf: true });
+          map.current.addImage('trolley-icon', trolleyImage.data, { sdf: true });
 
-          // Bus markers layer using SDF icon
+          // Vehicle markers layer using SDF icons
           map.current.addLayer({
             id: 'bus-markers',
             type: 'symbol',
             source: 'buses',
             layout: {
-              'icon-image': 'bus-icon',
+              'icon-image': [
+                'match',
+                ['get', 'vehicleType'],
+                'trolley', 'trolley-icon',
+                'bus-icon',
+              ],
               'icon-size': 0.25,
               'icon-anchor': 'bottom',
               'icon-allow-overlap': true,
@@ -96,7 +105,7 @@ function App() {
             },
           });
         } catch (e) {
-          console.error('Error loading bus icon:', e);
+          console.error('Error loading vehicle icons:', e);
         }
       })();
 

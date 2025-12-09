@@ -5,7 +5,8 @@ import { fetchTripUpdates } from './trip-updates.js';
 const SEPTA_VEHICLE_POSITIONS_URL =
   'https://www3.septa.org/gtfsrt/septa-pa-us/Vehicle/rtVehiclePosition.pb';
 const POLL_INTERVAL_MS = 5000;
-const TEST_BUS_COUNT = 9;
+const TEST_BUS_COUNT = 6;
+const TEST_TROLLEY_COUNT = 3;
 
 // Holiday bus metadata (decorated buses)
 const HOLIDAY_BUSES = {
@@ -62,8 +63,9 @@ async function selectRandomTestBuses() {
 
     const now = new Date();
     const candidateBuses = [];
+    const candidateTrolleys = [];
 
-    // Find buses with valid positions and upcoming stops
+    // Find vehicles with valid positions and upcoming stops
     for (const entity of feed.entity) {
       if (entity.vehicle?.vehicle?.id) {
         const vehicleId = entity.vehicle.vehicle.id;
@@ -80,25 +82,39 @@ async function selectRandomTestBuses() {
           continue;
         }
 
-        // Check if this bus has upcoming stops
+        // Check if this vehicle has upcoming stops
         const route = getUpcomingRoute(trip.tripId, position.latitude, position.longitude, now);
         if (route && route.upcomingStops && route.upcomingStops.length > 0) {
-          candidateBuses.push(vehicleId);
+          // Trolley IDs start with '9'
+          if (vehicleId.startsWith('9')) {
+            candidateTrolleys.push(vehicleId);
+          } else {
+            candidateBuses.push(vehicleId);
+          }
         }
       }
     }
 
-    // Shuffle and pick up to TEST_BUS_COUNT buses
-    for (let i = candidateBuses.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [candidateBuses[i], candidateBuses[j]] = [candidateBuses[j], candidateBuses[i]];
-    }
+    // Shuffle helper
+    const shuffle = (arr) => {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    };
 
+    // Pick from each pool
+    shuffle(candidateBuses);
+    shuffle(candidateTrolleys);
     const selectedBuses = candidateBuses.slice(0, TEST_BUS_COUNT);
-    testBusIds = new Set(selectedBuses);
-    testBusIdList = selectedBuses;
+    const selectedTrolleys = candidateTrolleys.slice(0, TEST_TROLLEY_COUNT);
+    const selectedVehicles = [...selectedBuses, ...selectedTrolleys];
 
-    console.log(`[Startup] Selected ${selectedBuses.length} random test buses: ${selectedBuses.join(', ')}`);
+    testBusIds = new Set(selectedVehicles);
+    testBusIdList = selectedVehicles;
+
+    console.log(`[Startup] Selected ${selectedBuses.length} test buses and ${selectedTrolleys.length} test trolleys: ${selectedVehicles.join(', ')}`);
   } catch (error) {
     console.error('Error selecting random test buses:', error.message);
   }
@@ -125,6 +141,7 @@ function positionsToGeoJSON(positions, mode) {
             bearing: bus.bearing,
             district: metadata?.district || null,
             headsign: metadata?.headsign || null,
+            vehicleType: bus.busId.startsWith('9') ? 'trolley' : 'bus',
           },
         };
       }),
