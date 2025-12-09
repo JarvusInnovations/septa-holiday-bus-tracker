@@ -20,7 +20,7 @@ const HOLIDAY_BUSES = {
 
   // Trolleys:
   '9034': { district: 'Elmwood', headsign: 'Home Alone', color: '#f4511e' },
-  '9087': { district: 'Elmwood', headsign: 'Home', color: '#c2185b' },
+  '9087': { district: 'Elmwood', headsign: 'Holiday', color: '#c2185b' },
   '9053': { district: 'Callowhill', headsign: 'Frosty the Snow Mobile', color: '#78909c' },
 };
 

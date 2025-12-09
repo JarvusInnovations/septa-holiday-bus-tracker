@@ -10,7 +10,7 @@ const HOLIDAY_VEHICLES = [
   { id: '3364', type: 'bus', district: 'Comly', name: 'Christmas in Wonderland', color: '#8e24aa' },
   { id: '3160', type: 'bus', district: 'Frankford', name: 'Care Bear Party Bus', color: '#00897b' },
   { id: '9034', type: 'trolley', district: 'Elmwood', name: 'Home Alone', color: '#f4511e' },
-  { id: '9087', type: 'trolley', district: 'Elmwood', name: 'Home', color: '#c2185b' },
+  { id: '9087', type: 'trolley', district: 'Elmwood', name: 'Holiday', color: '#c2185b' },
   { id: '9053', type: 'trolley', district: 'Callowhill', name: 'Frosty the Snow Mobile', color: '#78909c' },
 ];
 
