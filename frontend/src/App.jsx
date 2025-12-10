@@ -140,7 +140,7 @@ function App() {
           'circle-radius': 20,
           'circle-color': [
             'match',
-            ['%', ['get', 'stopSequence'], 2],
+            ['%', ['get', 'stopSequence'], 3],
             0, CHRISTMAS_COLORS[0],
             CHRISTMAS_COLORS[1],
           ],
@@ -160,7 +160,7 @@ function App() {
           'circle-radius': 8,
           'circle-color': [
             'match',
-            ['%', ['get', 'stopSequence'], 2],
+            ['%', ['get', 'stopSequence'], 3],
             0, CHRISTMAS_COLORS[0],
             CHRISTMAS_COLORS[1],
           ],
@@ -174,19 +174,19 @@ function App() {
       lightsIntervalRef.current = setInterval(() => {
         if (!map.current || !map.current.getLayer('route-stops')) return;
 
-        colorOffsetRef.current = (colorOffsetRef.current + 1) % 2;
+        colorOffsetRef.current = (colorOffsetRef.current + 2) % 3;
         const offset = colorOffsetRef.current;
 
         const colorExpr = [
           'match',
-          ['%', ['get', 'stopSequence'], 2],
-          0, CHRISTMAS_COLORS[(0 + offset) % 2],
-          CHRISTMAS_COLORS[(1 + offset) % 2],
+          ['%', ['+', ['get', 'stopSequence'], offset], 3],
+          0, CHRISTMAS_COLORS[0],
+          CHRISTMAS_COLORS[1],
         ];
 
         map.current.setPaintProperty('route-stops', 'circle-color', colorExpr);
         map.current.setPaintProperty('route-stops-glow', 'circle-color', colorExpr);
-      }, 1000);
+      }, 500);
 
       // Click handler for stop markers
       map.current.on('click', 'route-stops', (e) => {
