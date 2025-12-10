@@ -180,6 +180,23 @@
   opacity: 0.9;
 }
 
+.source-link {
+  display: block;
+  text-align: center;
+  margin-top: 16px;
+  font-size: 0.75rem;
+  color: #888;
+  text-decoration: none;
+}
+
+.source-link:hover {
+  color: #555;
+}
+
+.source-link svg {
+  margin-right: 4px;
+}
+
 /* Overlay */
 .sidebar-overlay {
   position: fixed;

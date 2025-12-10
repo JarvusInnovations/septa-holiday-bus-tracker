@@ -1,6 +1,7 @@
 import './Sidebar.css';
 import BusIcon from './icons/BusIcon';
 import TrolleyIcon from './icons/TrolleyIcon';
+import GitHubIcon from './icons/GitHubIcon';
 
 const HOLIDAY_VEHICLES = [
   { id: '3090', type: 'bus', district: 'Southern', name: 'Beetlejuice', color: '#e53935' },
@@ -69,6 +70,15 @@ export default function Sidebar({ isOpen, onClose }) {
           <button className="show-map-btn" onClick={onClose}>
             Show me the map! »
           </button>
+
+          <a
+            href="https://github.com/JarvusInnovations/septa-holiday-bus-tracker"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="source-link"
+          >
+            <GitHubIcon size={14} /> Source Code
+          </a>
         </div>
       </aside>
 
