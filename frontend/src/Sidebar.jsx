@@ -64,6 +64,7 @@ export default function Sidebar({ isOpen, onClose }) {
               ))}
             </tbody>
           </table>
+          <p className="vehicle-note">Not all vehicles run at the same time.</p>
 
           <button className="show-map-btn" onClick={onClose}>
             Show me the map! »

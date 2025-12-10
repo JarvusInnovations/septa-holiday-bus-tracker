@@ -154,6 +154,14 @@
   vertical-align: middle;
 }
 
+.vehicle-note {
+  font-size: 0.8rem;
+  color: #666;
+  text-align: center;
+  margin: 12px 0 0 0;
+  font-style: italic;
+}
+
 .show-map-btn {
   width: 100%;
   margin-top: 20px;
