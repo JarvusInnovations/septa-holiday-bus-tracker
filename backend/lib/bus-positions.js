@@ -15,8 +15,8 @@ const HOLIDAY_BUSES = {
   '3069': { district: 'Victory', headsign: 'The Best Gift Ever', color: '#43a047' },
   '3019': { district: 'Callowhill', headsign: 'Santa Paws', color: '#1e88e5' },
   '3817': { district: 'Midvale', headsign: "National Lampoon's Christmas Vacation", color: '#fdd835' },
-  '3364': { district: 'Comly', headsign: 'Christmas in Wonderland', color: '#8e24aa' },
-  '3160': { district: 'Frankford', headsign: 'Care Bear Party Bus', color: '#00897b' },
+  '3364': { district: 'Frankford', headsign: 'Christmas in Wonderland', color: '#8e24aa' },
+  '3374': { district: 'Comly', headsign: 'Care Bear Party Bus', color: '#00897b' },
 
   // Trolleys:
   '9034': { district: 'Elmwood', headsign: 'Home Alone', color: '#f4511e' },
