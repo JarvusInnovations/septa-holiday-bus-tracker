@@ -2,6 +2,8 @@
 
 Track SEPTA's decorated holiday buses in real-time across Philadelphia. See where they are now and where they're heading next.
 
+![Screenshot](./screenshot.png)
+
 ## Repository Structure
 
 ```
