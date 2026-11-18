@@ -3,6 +3,8 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import SnowfallOverlay from './SnowfallOverlay';
 import Sidebar from './Sidebar';
+import ComingSoon from './ComingSoon';
+import { HOLIDAY_VEHICLES } from './holidayVehicles';
 import './App.css';
 
 const PHILADELPHIA_CENTER = [-75.1652, 39.9526];
@@ -11,6 +13,9 @@ const POLL_INTERVAL_MS = 5000;
 
 const isTestMode = new URLSearchParams(window.location.search).get('test') === 'true';
 const apiUrl = isTestMode ? `${MAP_DATA_API_URL}?test=true` : MAP_DATA_API_URL;
+
+// Until this year's vehicles are announced, show a "coming soon" notice instead of the welcome sidebar
+const isComingSoon = HOLIDAY_VEHICLES.length === 0 && !isTestMode;
 
 const EMPTY_GEOJSON = { type: 'FeatureCollection', features: [] };
 
@@ -28,12 +33,13 @@ function getRandomEmojis() {
 function App() {
   const [emojis] = useState(() => getRandomEmojis());
   const [sidebarOpen, setSidebarOpen] = useState(() => {
-    return !localStorage.getItem(SIDEBAR_STORAGE_KEY);
+    return !isComingSoon && !localStorage.getItem(SIDEBAR_STORAGE_KEY);
   });
 
   const closeSidebar = () => {
     setSidebarOpen(false);
-    localStorage.setItem(SIDEBAR_STORAGE_KEY, 'true');
+    // Don't count a coming-soon visit as having seen the welcome sidebar
+    if (!isComingSoon) localStorage.setItem(SIDEBAR_STORAGE_KEY, 'true');
   };
   const mapContainer = useRef(null);
   const map = useRef(null);
@@ -344,7 +350,7 @@ function App() {
 
   return (
     <div className="app-container">
-      <Sidebar isOpen={sidebarOpen} onClose={closeSidebar} />
+      <Sidebar isOpen={sidebarOpen} onClose={closeSidebar} comingSoon={isComingSoon} />
       <SnowfallOverlay mapRef={map} />
       <header className="title-bar">
         <button
@@ -357,7 +363,10 @@ function App() {
         <span className="title-text">{emojis[0]} Festibus Tracker {emojis[1]}</span>
         <div className="title-bar-spacer" />
       </header>
-      <div ref={mapContainer} className="map-container" />
+      <div className="map-wrapper">
+        <div ref={mapContainer} className="map-container" />
+        {isComingSoon && <ComingSoon />}
+      </div>
     </div>
   );
 }

@@ -8,31 +8,26 @@ const POLL_INTERVAL_MS = 5000;
 const TEST_BUS_COUNT = 6;
 const TEST_TROLLEY_COUNT = 4;
 
-// Holiday bus metadata (decorated buses)
-const HOLIDAY_BUSES = {
-  // Buses:
-  '3090': { district: 'Southern', headsign: 'Beetlejuice', color: '#e53935' },
-  '3069': { district: 'Victory', headsign: 'The Best Gift Ever', color: '#43a047' },
-  '3019': { district: 'Callowhill', headsign: 'Santa Paws', color: '#1e88e5' },
-  '3817': { district: 'Midvale', headsign: "National Lampoon's Christmas Vacation", color: '#fdd835' },
-  '3374': { district: 'Comly', headsign: 'Christmas in Wonderland', color: '#8e24aa' },
-  '3364': { district: 'Frankford', headsign: 'Care Bear Party Bus', color: '#00897b' },
+// Palette for vehicle markers: assign one per holiday vehicle, cycled through in test mode
+const HOLIDAY_COLORS = [
+  '#e53935', '#43a047', '#1e88e5', '#fdd835', '#8e24aa',
+  '#00897b', '#f4511e', '#c2185b', '#78909c', '#7cb342',
+];
 
-  // Trolleys:
-  '9034': { district: 'Elmwood', headsign: 'Home Alone', color: '#f4511e' },
-  '9087': { district: 'Elmwood', headsign: 'Holiday', color: '#c2185b' },
-  '9053': { district: 'Callowhill', headsign: 'Frosty the Snow Mobile', color: '#78909c' },
-  '9009': { district: 'Woodland', headsign: 'Star Wars', color: '#7cb342' },
-};
+// Holiday vehicle metadata (decorated buses and trolleys), keyed by vehicle ID.
+//
+// While this is empty no holiday vehicles are tracked and the site runs in
+// "coming soon" mode. Fill it in (along with HOLIDAY_VEHICLES in
+// frontend/src/holidayVehicles.js) once SEPTA announces the fleet. Entry shape:
+//   '3090': { district: 'Southern', headsign: 'Beetlejuice', color: '#e53935' },
+//   '9034': { district: 'Elmwood', headsign: 'Home Alone', color: '#f4511e' },  // trolley IDs start with '9'
+const HOLIDAY_BUSES = {};
 
 const HOLIDAY_BUS_IDS = new Set(Object.keys(HOLIDAY_BUSES));
 
 // Test bus IDs - dynamically selected on startup
 let testBusIds = new Set();
 let testBusIdList = [];
-
-// Extract colors from HOLIDAY_BUSES for test mode
-const HOLIDAY_COLORS = Object.values(HOLIDAY_BUSES).map(b => b.color);
 
 function getBusColor(busId, mode) {
   if (mode === 'test') {
