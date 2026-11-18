@@ -46,3 +46,14 @@ Open <http://localhost:5173> to view the map.
 To view test buses instead of holiday buses (useful for development when holiday buses aren't running), add `?test=true` to the URL:
 
 <http://localhost:5173/?test=true>
+
+## Coming Soon Mode
+
+Before SEPTA announces each year's decorated fleet, the vehicle lists are left empty and the site shows a festive "coming soon" notice over the map instead of tracking anything.
+
+To go live, fill in both lists with the new vehicle numbers:
+
+- `HOLIDAY_BUSES` in `backend/lib/bus-positions.js`
+- `HOLIDAY_VEHICLES` in `frontend/src/holidayVehicles.js`
+
+To go back to coming soon mode, empty both lists again.

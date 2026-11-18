@@ -1,0 +1,40 @@
+.coming-soon {
+  position: absolute;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  pointer-events: none;
+}
+
+.coming-soon-card {
+  max-width: 420px;
+  padding: 28px 24px;
+  border-radius: 16px;
+  border: 3px solid #ffffff;
+  background: linear-gradient(135deg, #c41e3a 0%, #228b22 100%);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  color: white;
+  text-align: center;
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+  pointer-events: auto;
+}
+
+.coming-soon-emoji {
+  font-size: 3rem;
+  line-height: 1;
+}
+
+.coming-soon-card h1 {
+  margin: 12px 0 8px 0;
+  font-size: 1.75rem;
+  letter-spacing: 1px;
+}
+
+.coming-soon-card p {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.5;
+}

@@ -3,20 +3,9 @@ import BusIcon from './icons/BusIcon';
 import TrolleyIcon from './icons/TrolleyIcon';
 import GitHubIcon from './icons/GitHubIcon';
 
-const HOLIDAY_VEHICLES = [
-  { id: '3090', type: 'bus', district: 'Southern', name: 'Beetlejuice', color: '#e53935' },
-  { id: '3069', type: 'bus', district: 'Victory', name: 'The Best Gift Ever', color: '#43a047' },
-  { id: '3019', type: 'bus', district: 'Callowhill', name: 'Santa Paws', color: '#1e88e5' },
-  { id: '3817', type: 'bus', district: 'Midvale', name: "National Lampoon's Christmas Vacation", color: '#fdd835' },
-  { id: '3374', type: 'bus', district: 'Comly', name: 'Christmas in Wonderland', color: '#8e24aa' },
-  { id: '3364', type: 'bus', district: 'Frankford', name: 'Care Bear Party Bus', color: '#00897b' },
-  { id: '9034', type: 'trolley', district: 'Elmwood', name: 'Home Alone', color: '#f4511e' },
-  { id: '9087', type: 'trolley', district: 'Elmwood', name: 'Holiday', color: '#c2185b' },
-  { id: '9053', type: 'trolley', district: 'Callowhill', name: 'Frosty the Snow Mobile', color: '#78909c' },
-  { id: '9009', type: 'trolley', district: 'Woodland', name: 'Star Wars', color: '#7cb342' },
-];
+import { HOLIDAY_VEHICLES } from './holidayVehicles';
 
-export default function Sidebar({ isOpen, onClose }) {
+export default function Sidebar({ isOpen, onClose, comingSoon }) {
   return (
     <>
       <aside className={`sidebar ${isOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
@@ -33,12 +22,22 @@ export default function Sidebar({ isOpen, onClose }) {
 
         <div className="sidebar-content">
           <p className="disclaimer">UNOFFICIAL Festibus Tracker</p>
-          <p className="intro">
-            See live positions of SEPTA's decorated holiday buses and trolleys,
-            plus their routes for the next 30 minutes. Zoom in to see stops,
-            then tap one to check arrival times.
-          </p>
+          {comingSoon ? (
+            <p className="intro">
+              This year's Festibuses haven't hit the streets yet! Once they
+              do, you'll see live positions of SEPTA's decorated holiday buses
+              and trolleys here, plus their routes and arrival times. Check
+              back soon!
+            </p>
+          ) : (
+            <p className="intro">
+              See live positions of SEPTA's decorated holiday buses and trolleys,
+              plus their routes for the next 30 minutes. Zoom in to see stops,
+              then tap one to check arrival times.
+            </p>
+          )}
 
+          {HOLIDAY_VEHICLES.length > 0 && (<>
           <h3>Holiday Vehicles</h3>
           <table className="vehicle-table">
             <thead>
@@ -66,10 +65,13 @@ export default function Sidebar({ isOpen, onClose }) {
             </tbody>
           </table>
           <p className="vehicle-note">Not all vehicles run at the same time.</p>
+          </>)}
 
-          <button className="show-map-btn" onClick={onClose}>
-            Show me the map! »
-          </button>
+          {!comingSoon && (
+            <button className="show-map-btn" onClick={onClose}>
+              Show me the map! »
+            </button>
+          )}
 
           <a
             href="https://github.com/JarvusInnovations/septa-holiday-bus-tracker"
