@@ -25,13 +25,14 @@ const flat = (rows) => rows.flatMap(([stopId, sequence, arrival]) => [stopId, se
 
 export function loadFixtures() {
   setGtfsData({
+    routes: { 47: '47', N1_BUS: 'N1' },
     trips: {
       // Evening out-and-back trip, 18:00-18:20
       T1: { routeId: '47', serviceId: 'WK', shapeId: 'S1', blockId: 'B1', headsign: 'Back to A' },
       // Next trip for the same vehicle, 18:25-18:45
       T2: { routeId: '47', serviceId: 'WK', shapeId: 'S2', blockId: 'B1', headsign: 'Onward' },
       // Late-night trip that runs past midnight, 23:50-24:20
-      T3: { routeId: 'N1', serviceId: 'WK', shapeId: 'S1', blockId: 'B2', headsign: 'Owl' },
+      T3: { routeId: 'N1_BUS', serviceId: 'WK', shapeId: 'S1', blockId: 'B2', headsign: 'Owl' },
     },
     stopTimes: {
       T1: flat([

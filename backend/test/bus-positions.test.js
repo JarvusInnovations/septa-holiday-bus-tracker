@@ -60,6 +60,11 @@ test('a vehicle reporting without a trip is parked and still on the map', () => 
   assert.equal(data.routes.features.length, 0);
 });
 
+test('routes are shown by the name riders know', () => {
+  const data = buildModeData(FLEET, reportingOf(live('3019', { tripId: 'T3', routeId: 'N1_BUS' })), NOW);
+  assert.equal(byId(data, '3019').routeId, 'N1');
+});
+
 test('a vehicle on a trip the schedule does not know is still in service', () => {
   const data = buildModeData(FLEET, reportingOf(live('3019', { tripId: 'mystery', routeId: '23' })), NOW);
   assert.equal(byId(data, '3019').status, 'in_service');

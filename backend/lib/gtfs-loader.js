@@ -8,6 +8,7 @@ export const DATA_DIR = path.join(__dirname, '..', 'data', 'gtfs');
 // The schedule is held in compact form (see bin/download-gtfs.js):
 //   trips:     { tripId: { routeId, serviceId, shapeId, blockId, headsign } }
 //   stopTimes: { tripId: [stopId, stopSequence, arrivalSeconds, ...] }  (flat triples)
+//   routes:    { routeId: name riders know it by }
 //   stops:     { stopId: { name, lat, lon } }
 //   shapes:    { shapeId: [lat, lon, lat, lon, ...] }                   (flat pairs)
 let store = null;
@@ -41,8 +42,9 @@ function buildBlocks(trips, stopTimes) {
 }
 
 /** Replace the in-memory schedule. Exposed so tests can supply a small one. */
-export function setGtfsData({ trips, stopTimes, stops, shapes, meta = null }) {
+export function setGtfsData({ trips, stopTimes, stops, shapes, routes = {}, meta = null }) {
   store = {
+    routes,
     trips,
     stopTimes,
     stops,
@@ -63,11 +65,13 @@ export async function loadGtfsData(dataDir = DATA_DIR) {
   const stopTimes = await read('stop_times.json');
   const stops = await read('stops.json');
   const shapes = await read('shapes.json');
+  let routes = {};
   let meta = null;
   try {
+    routes = await read('routes.json');
     meta = await read('meta.json');
   } catch {
-    // Older downloads have no meta file
+    // Older downloads have neither file; route ids are shown as they are
   }
 
   // Before the compact format each stop time was an object rather than three values
@@ -77,7 +81,7 @@ export async function loadGtfsData(dataDir = DATA_DIR) {
   }
 
   // Swap everything at once so readers never see a mix of old and new
-  setGtfsData({ trips, stopTimes, stops, shapes, meta });
+  setGtfsData({ trips, stopTimes, stops, shapes, routes, meta });
 
   console.log(
     `  Loaded: ${Object.keys(trips).length} trips, ${Object.keys(stops).length} stops, ${Object.keys(shapes).length} shapes` +
@@ -91,6 +95,12 @@ export function isGtfsLoaded() {
 
 export function getGtfsInfo() {
   return store ? { ...(store.meta || {}), loadedAt: store.loadedAt } : null;
+}
+
+/** The name riders know a route by (e.g. "M1" for route id "M1_BUS"). */
+export function getRouteName(routeId) {
+  if (routeId == null) return null;
+  return store?.routes[routeId] ?? routeId;
 }
 
 export function getTrip(tripId) {

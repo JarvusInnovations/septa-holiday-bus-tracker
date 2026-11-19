@@ -1,7 +1,7 @@
 import GtfsRealtimeBindings from 'gtfs-realtime-bindings';
 import { buildRoutesGeoJSON } from './route-predictor.js';
 import { fetchTripUpdates } from './trip-updates.js';
-import { getTrip } from './gtfs-loader.js';
+import { getTrip, getRouteName } from './gtfs-loader.js';
 import { getFleet, activeNotice, guessVehicleType, VEHICLE_COLORS } from './fleet.js';
 import { formatClock } from './time.js';
 
@@ -153,7 +153,7 @@ export function buildModeData(fleet, reporting, nowMs, memory = new Map()) {
       name: record.entry.name,
       color: record.entry.color,
       status: record.status,
-      routeId: record.status === 'in_service' ? record.routeId || trip?.routeId || null : null,
+      routeId: record.status === 'in_service' ? getRouteName(record.routeId || trip?.routeId || null) : null,
       destination: record.status === 'in_service' ? trip?.headsign || null : null,
       lastSeen: record.status === 'last_seen' ? formatClock(record.seenAtMs) : null,
     };

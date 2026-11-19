@@ -88,6 +88,17 @@ async function processTrips(rawDir) {
   return trips;
 }
 
+async function processRoutes(rawDir) {
+  console.log('Processing routes.txt...');
+  // routeId -> the name riders know it by
+  const routes = {};
+  await eachRow(rawDir, 'routes.txt', (r) => {
+    routes[r.route_id] = r.route_short_name || r.route_long_name || r.route_id;
+  });
+  console.log(`  Processed ${Object.keys(routes).length} routes`);
+  return routes;
+}
+
 async function processStopTimes(rawDir) {
   console.log('Processing stop_times.txt...');
 
@@ -197,6 +208,7 @@ export async function downloadGtfs(dataDir = DATA_DIR) {
     const source = await downloadAndExtract(rawDir);
 
     const outputs = {
+      'routes.json': await processRoutes(rawDir),
       'trips.json': await processTrips(rawDir),
       'stop_times.json': await processStopTimes(rawDir),
       'stops.json': await processStops(rawDir),
