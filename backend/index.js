@@ -3,19 +3,24 @@ import { dirname, join } from 'path';
 import { existsSync } from 'fs';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import compress from '@fastify/compress';
 import fastifyStatic from '@fastify/static';
-import { loadGtfsData } from './lib/gtfs-loader.js';
-import { startPolling } from './lib/bus-positions.js';
+import { loadGtfsData, getGtfsInfo } from './lib/gtfs-loader.js';
+import { startGtfsRefresh } from './lib/gtfs-refresh.js';
+import { startPolling, getFeedAgeSeconds } from './lib/bus-positions.js';
 import mapDataRoute from './routes/map-data.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const fastify = Fastify({ logger: true });
+// Health checks and 5-second polling would otherwise drown the logs
+const fastify = Fastify({ logger: true, disableRequestLogging: true });
 
 await fastify.register(cors, {
   origin: true,
 });
+
+await fastify.register(compress);
 
 fastify.register(mapDataRoute);
 
@@ -28,8 +33,14 @@ if (existsSync(publicDir)) {
   });
 }
 
+// Always 200 while the process is up: restarting the pod can't fix a SEPTA
+// outage, so feed problems are reported here rather than failing the probe
 fastify.get('/health', async (request, reply) => {
-  return { status: 'ok' };
+  return {
+    status: 'ok',
+    feedAgeSeconds: getFeedAgeSeconds(),
+    gtfs: getGtfsInfo(),
+  };
 });
 
 async function start() {
@@ -42,6 +53,7 @@ async function start() {
   }
 
   await startPolling();
+  startGtfsRefresh();
 
   try {
     await fastify.listen({ port: 3000, host: '0.0.0.0' });

@@ -1,14 +1,66 @@
+import { useEffect } from 'react';
 import './Sidebar.css';
 import BusIcon from './icons/BusIcon';
 import TrolleyIcon from './icons/TrolleyIcon';
 import GitHubIcon from './icons/GitHubIcon';
 
-import { HOLIDAY_VEHICLES } from './holidayVehicles';
+function statusLabel(vehicle) {
+  switch (vehicle.status) {
+    case 'in_service':
+      return vehicle.routeId ? `Route ${vehicle.routeId}` : 'In service';
+    case 'parked':
+      return 'Parked';
+    case 'last_seen':
+      return `Last seen ${vehicle.lastSeen}`;
+    default:
+      return 'Not out';
+  }
+}
 
-export default function Sidebar({ isOpen, onClose, comingSoon }) {
+function VehicleRow({ vehicle, onSelect }) {
+  const Icon = vehicle.type === 'trolley' ? TrolleyIcon : BusIcon;
+  const onMap = vehicle.status !== 'not_reporting';
+  const heading = [vehicle.id, vehicle.district].filter(Boolean).join(' · ');
+
+  return (
+    <li>
+      <button
+        className="vehicle-row"
+        onClick={() => onSelect(vehicle.id)}
+        disabled={!onMap}
+        title={onMap ? 'Show on the map' : undefined}
+      >
+        <Icon color={vehicle.color} size={20} />
+        <span className="vehicle-text">
+          <span className="vehicle-heading">{heading}</span>
+          {vehicle.name && <span className="vehicle-name">{vehicle.name}</span>}
+        </span>
+        <span className={`vehicle-status vehicle-status-${vehicle.status}`}>
+          {statusLabel(vehicle)}
+        </span>
+      </button>
+    </li>
+  );
+}
+
+export default function Sidebar({ isOpen, onClose, comingSoon, vehicles, onSelectVehicle }) {
+  // Escape closes the sidebar
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
+
   return (
     <>
-      <aside className={`sidebar ${isOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
+      <aside
+        className={`sidebar ${isOpen ? 'sidebar-open' : 'sidebar-closed'}`}
+        // Keep the off-screen sidebar out of the tab order and away from screen readers
+        inert={!isOpen}
+      >
         <header className="sidebar-header">
           <h2>Welcome!</h2>
           <button
@@ -37,35 +89,19 @@ export default function Sidebar({ isOpen, onClose, comingSoon }) {
             </p>
           )}
 
-          {HOLIDAY_VEHICLES.length > 0 && (<>
-          <h3>Holiday Vehicles</h3>
-          <table className="vehicle-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>District</th>
-                <th>Name</th>
-              </tr>
-            </thead>
-            <tbody>
-              {HOLIDAY_VEHICLES.map((vehicle) => (
-                <tr key={vehicle.id}>
-                  <td className="vehicle-id-cell">
-                    {vehicle.type === 'bus' ? (
-                      <BusIcon color={vehicle.color} size={16} />
-                    ) : (
-                      <TrolleyIcon color={vehicle.color} size={16} />
-                    )}
-                    <span className="vehicle-id">{vehicle.id}</span>
-                  </td>
-                  <td>{vehicle.district}</td>
-                  <td>{vehicle.name}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <p className="vehicle-note">Not all vehicles run at the same time.</p>
-          </>)}
+          {vehicles.length > 0 && (
+            <>
+              <h3>Holiday Vehicles</h3>
+              <ul className="vehicle-list">
+                {vehicles.map((vehicle) => (
+                  <VehicleRow key={vehicle.id} vehicle={vehicle} onSelect={onSelectVehicle} />
+                ))}
+              </ul>
+              <p className="vehicle-note">
+                Tap a vehicle to find it on the map. Not all vehicles run at the same time.
+              </p>
+            </>
+          )}
 
           {!comingSoon && (
             <button className="show-map-btn" onClick={onClose}>

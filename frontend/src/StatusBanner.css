@@ -1,0 +1,50 @@
+.status-banner {
+  position: absolute;
+  top: 12px;
+  /* Leave room for the map controls in the top right corner */
+  left: 12px;
+  right: 56px;
+  z-index: 890;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.status-message {
+  max-width: 480px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.3;
+  text-align: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+}
+
+.status-info {
+  background: rgba(33, 33, 33, 0.92);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.status-notice {
+  background: linear-gradient(135deg, #c41e3a 0%, #228b22 100%);
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.status-warning {
+  background: #fff3cd;
+  color: #664d03;
+  border: 1px solid #ffc107;
+}
+
+@media (max-width: 768px) {
+  .status-message {
+    border-radius: 14px;
+  }
+}
