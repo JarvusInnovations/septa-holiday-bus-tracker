@@ -12,16 +12,32 @@ const TEST_TROLLEY_COUNT = 4;
 const HOLIDAY_COLORS = [
   '#e53935', '#43a047', '#1e88e5', '#fdd835', '#8e24aa',
   '#00897b', '#f4511e', '#c2185b', '#78909c', '#7cb342',
+  '#26c6da',
 ];
 
 // Holiday vehicle metadata (decorated buses and trolleys), keyed by vehicle ID.
 //
 // While this is empty no holiday vehicles are tracked and the site runs in
-// "coming soon" mode. Fill it in (along with HOLIDAY_VEHICLES in
-// frontend/src/holidayVehicles.js) once SEPTA announces the fleet. Entry shape:
-//   '3090': { district: 'Southern', headsign: 'Beetlejuice', color: '#e53935' },
-//   '9034': { district: 'Elmwood', headsign: 'Home Alone', color: '#f4511e' },  // trolley IDs start with '9'
-const HOLIDAY_BUSES = {};
+// "coming soon" mode. Keep it in sync with HOLIDAY_VEHICLES in
+// frontend/src/holidayVehicles.js.
+//
+// `headsign` is the decoration theme; leave it null until the theme is known.
+const HOLIDAY_BUSES = {
+  // Buses:
+  '3416': { district: 'Allegheny', headsign: null, color: '#e53935' },
+  '3019': { district: 'Callowhill', headsign: null, color: '#1e88e5' },
+  '3184': { district: 'Comly', headsign: null, color: '#8e24aa' },
+  '3276': { district: 'Frankford', headsign: null, color: '#00897b' },
+  '3197': { district: 'Frontier', headsign: null, color: '#c2185b' },
+  '4627': { district: 'Germantown', headsign: null, color: '#26c6da' }, // LUCY bus
+  '3230': { district: 'Midvale', headsign: null, color: '#fdd835' },
+  '3252': { district: 'Southern', headsign: null, color: '#78909c' },
+  '3273': { district: 'Victory', headsign: null, color: '#43a047' },
+
+  // Trolleys (IDs start with '9'):
+  '9027': { district: 'Elmwood', headsign: null, color: '#f4511e' },
+  '9079': { district: 'Woodland', headsign: null, color: '#7cb342' },
+};
 
 const HOLIDAY_BUS_IDS = new Set(Object.keys(HOLIDAY_BUSES));
 
