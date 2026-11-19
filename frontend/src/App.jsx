@@ -258,7 +258,7 @@ function App() {
         if (isTestMode) {
           popupContent = `<strong>Test Bus ${props.busId}</strong><br/>Route ${props.routeId || 'N/A'}`;
         } else {
-          popupContent = `<strong>${props.headsign || 'Holiday Bus'}</strong>`;
+          popupContent = `<strong>${props.headsign || (props.vehicleType === 'trolley' ? 'Holiday Trolley' : 'Holiday Bus')}</strong>`;
           if (props.district) {
             popupContent += `<br/>${props.district} District`;
           }

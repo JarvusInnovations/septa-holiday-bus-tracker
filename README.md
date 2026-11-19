@@ -51,7 +51,7 @@ To view test buses instead of holiday buses (useful for development when holiday
 
 Before SEPTA announces each year's decorated fleet, the vehicle lists are left empty and the site shows a festive "coming soon" notice over the map instead of tracking anything.
 
-To go live, fill in both lists with the new vehicle numbers:
+To go live, fill in both lists with the new vehicle numbers (theme names are optional and can be added as they are announced):
 
 - `HOLIDAY_BUSES` in `backend/lib/bus-positions.js`
 - `HOLIDAY_VEHICLES` in `frontend/src/holidayVehicles.js`

@@ -5,6 +5,9 @@ import GitHubIcon from './icons/GitHubIcon';
 
 import { HOLIDAY_VEHICLES } from './holidayVehicles';
 
+// Themes may not be announced yet; only show the column once at least one is known
+const hasNames = HOLIDAY_VEHICLES.some((vehicle) => vehicle.name);
+
 export default function Sidebar({ isOpen, onClose, comingSoon }) {
   return (
     <>
@@ -44,7 +47,7 @@ export default function Sidebar({ isOpen, onClose, comingSoon }) {
               <tr>
                 <th>#</th>
                 <th>District</th>
-                <th>Name</th>
+                {hasNames && <th>Name</th>}
               </tr>
             </thead>
             <tbody>
@@ -59,7 +62,7 @@ export default function Sidebar({ isOpen, onClose, comingSoon }) {
                     <span className="vehicle-id">{vehicle.id}</span>
                   </td>
                   <td>{vehicle.district}</td>
-                  <td>{vehicle.name}</td>
+                  {hasNames && <td>{vehicle.name}</td>}
                 </tr>
               ))}
             </tbody>
