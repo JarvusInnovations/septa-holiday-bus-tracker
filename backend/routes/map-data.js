@@ -1,12 +1,4 @@
-import { getBuses, getRoutes } from '../lib/bus-positions.js';
-
-const geoJSONSchema = {
-  type: 'object',
-  properties: {
-    type: { type: 'string' },
-    features: { type: 'array' },
-  },
-};
+import { getMapData } from '../lib/bus-positions.js';
 
 const mapDataSchema = {
   querystring: {
@@ -15,26 +7,13 @@ const mapDataSchema = {
       test: { type: 'string' },
     },
   },
-  response: {
-    200: {
-      type: 'object',
-      required: ['buses', 'routes', 'lastUpdated'],
-      properties: {
-        buses: geoJSONSchema,
-        routes: geoJSONSchema,
-        lastUpdated: { type: 'string' },
-      },
-    },
-  },
 };
 
 export default async function mapDataRoute(fastify) {
   fastify.get('/api/map-data', { schema: mapDataSchema }, async (request, reply) => {
     const mode = request.query.test === 'true' ? 'test' : 'holiday';
-    return {
-      buses: getBuses(mode),
-      routes: getRoutes(mode),
-      lastUpdated: new Date().toISOString(),
-    };
+    // Positions change every few seconds; never let a proxy or browser hold on to them
+    reply.header('Cache-Control', 'no-store');
+    return getMapData(mode);
   });
 }
