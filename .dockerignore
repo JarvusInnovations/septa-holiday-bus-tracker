@@ -15,7 +15,7 @@ frontend/dist/
 *.swp
 *.swo
 
-# Local data (will be downloaded at runtime)
+# Local schedule data (a fresh copy is downloaded during the image build)
 backend/data/gtfs/
 
 # Logs
