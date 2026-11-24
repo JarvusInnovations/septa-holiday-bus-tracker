@@ -1,261 +1,396 @@
-import { getTrip, getStopTimes, getStop, getShape, isServiceActiveOnDate } from './gtfs-loader.js';
-import { getStopPrediction } from './trip-updates.js';
+import { getTrip, getStopTimes, getStop, getShape, getNextTripInBlock } from './gtfs-loader.js';
+import { getPredictedArrival } from './trip-updates.js';
+import { serviceDayStart, inferServiceDate, formatServiceSeconds } from './time.js';
 
-const PREDICTION_WINDOW_MINUTES = 30;
+const PREDICTION_WINDOW_SECONDS = 30 * 60;
 
-/**
- * Get seconds since midnight for a given Date object.
- */
-function getSecondsOfDay(date) {
-  return date.getHours() * 3600 + date.getMinutes() * 60 + date.getSeconds();
+// Without a "current stop" from the feed, a stop this far in the past is treated as passed
+const PASSED_GRACE_SECONDS = 120;
+
+// How close a shape point must be to count as "the stop is here"
+const STOP_MATCH_METERS = 50;
+// Once matched, stop scanning after the shape has moved this much further away
+const STOP_MATCH_GIVE_UP_METERS = 150;
+// A stop further than this from the whole shape is ignored when placing later stops
+const STOP_MAX_OFFSET_METERS = 250;
+// Only draw a connector from the vehicle to the route when it's this close to it
+const VEHICLE_CONNECT_METERS = 250;
+
+const MAX_CACHED_PROJECTIONS = 500;
+const stopProjectionCache = new Map();
+
+export function clearRouteCaches() {
+  stopProjectionCache.clear();
+}
+
+/** Fast flat-earth distance in meters; accurate enough at city scale. */
+function distanceMeters(lat1, lon1, lat2, lon2) {
+  const metersPerDegree = 111320;
+  const dy = (lat2 - lat1) * metersPerDegree;
+  const dx = (lon2 - lon1) * metersPerDegree * Math.cos(((lat1 + lat2) / 2) * (Math.PI / 180));
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function roundCoord(value) {
+  return Math.round(value * 1e5) / 1e5;
 }
 
 /**
- * Convert Unix timestamp to HH:MM:SS format string.
+ * Find where each stop of a trip sits along its shape.
+ *
+ * Stops are matched in order, each one searched for only at or after the
+ * previous stop's position. A plain "nearest point" search goes wrong on
+ * routes that loop or double back along the same street, because a point on
+ * the return leg can be just as close as the one on the outbound leg.
+ *
+ * @param {number[]} shape - flat [lat, lon, ...] array
+ * @param {{lat: number, lon: number}[]} stops - in stop order (null entries allowed)
+ * @returns {number[]} shape point index for each stop
  */
-function unixToTimeString(unixTimestamp) {
-  const date = new Date(unixTimestamp * 1000);
-  const hours = date.getHours().toString().padStart(2, '0');
-  const minutes = date.getMinutes().toString().padStart(2, '0');
-  const seconds = date.getSeconds().toString().padStart(2, '0');
-  return `${hours}:${minutes}:${seconds}`;
-}
+export function projectStopsOntoShape(shape, stops) {
+  const pointCount = shape.length / 2;
+  const indexes = [];
+  let previous = 0;
 
-/**
- * Calculate distance between two lat/lon points using Haversine formula.
- * Returns distance in meters.
- */
-function haversineDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371000; // Earth's radius in meters
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
+  for (const stop of stops) {
+    if (!stop) {
+      indexes.push(previous);
+      continue;
+    }
 
-/**
- * Find the closest shape point to the current vehicle position.
- */
-function findClosestShapePoint(shapePoints, lat, lon) {
-  let minDist = Infinity;
-  let closestIdx = 0;
+    let best = previous;
+    let bestDistance = Infinity;
+    for (let i = previous; i < pointCount; i++) {
+      const d = distanceMeters(stop.lat, stop.lon, shape[i * 2], shape[i * 2 + 1]);
+      if (d < bestDistance) {
+        bestDistance = d;
+        best = i;
+      } else if (bestDistance <= STOP_MATCH_METERS && d > bestDistance + STOP_MATCH_GIVE_UP_METERS) {
+        // Found the stop and the shape has since moved well away from it
+        break;
+      }
+    }
 
-  for (let i = 0; i < shapePoints.length; i++) {
-    const dist = haversineDistance(lat, lon, shapePoints[i].lat, shapePoints[i].lon);
-    if (dist < minDist) {
-      minDist = dist;
-      closestIdx = i;
+    if (bestDistance > STOP_MAX_OFFSET_METERS) {
+      // Stop isn't near the shape at all; don't let it drag later stops forward
+      indexes.push(previous);
+    } else {
+      indexes.push(best);
+      previous = best;
     }
   }
 
-  return { index: closestIdx, distance: minDist };
+  return indexes;
+}
+
+function getStopShapeIndexes(tripId, shape, stopTimes) {
+  let indexes = stopProjectionCache.get(tripId);
+  if (!indexes) {
+    if (stopProjectionCache.size >= MAX_CACHED_PROJECTIONS) {
+      stopProjectionCache.clear();
+    }
+    indexes = projectStopsOntoShape(
+      shape,
+      stopTimes.map((st) => getStop(st.stopId))
+    );
+    stopProjectionCache.set(tripId, indexes);
+  }
+  return indexes;
+}
+
+function nearestShapeIndex(shape, lat, lon, from, to) {
+  let best = from;
+  let bestDistance = Infinity;
+  for (let i = from; i <= to; i++) {
+    const d = distanceMeters(lat, lon, shape[i * 2], shape[i * 2 + 1]);
+    if (d < bestDistance) {
+      bestDistance = d;
+      best = i;
+    }
+  }
+  return { index: best, distance: bestDistance };
+}
+
+function shapeSlice(shape, from, to) {
+  const coordinates = [];
+  for (let i = from; i <= to; i++) {
+    coordinates.push([roundCoord(shape[i * 2 + 1]), roundCoord(shape[i * 2])]);
+  }
+  return coordinates;
 }
 
 /**
- * Get upcoming route information for a vehicle.
- *
- * @param {string} tripId - The GTFS trip_id from the realtime feed
- * @param {number} currentLat - Vehicle's current latitude
- * @param {number} currentLon - Vehicle's current longitude
- * @param {Date} currentTime - Current time
- * @returns {object|null} - Upcoming route data or null if trip not found
+ * Describe one stop of a trip relative to "now".
+ * All times are seconds since the start of the trip's service day.
  */
-export function getUpcomingRoute(tripId, currentLat, currentLon, currentTime) {
+function describeStop(tripId, stopTime, dayStartMs) {
+  const scheduled = stopTime.arrivalSeconds;
+  const predictedUnix = getPredictedArrival(tripId, stopTime.stopSequence);
+  const predicted = predictedUnix != null ? predictedUnix - dayStartMs / 1000 : null;
+
+  return {
+    scheduled,
+    predicted,
+    // The time we actually expect the vehicle: live prediction when there is one
+    effective: predicted ?? scheduled,
+  };
+}
+
+function toStopFeatureData(stopTime, times, extra = {}) {
+  const stop = getStop(stopTime.stopId);
+  if (!stop) return null;
+
+  return {
+    stopId: stopTime.stopId,
+    name: stop.name,
+    lat: stop.lat,
+    lon: stop.lon,
+    stopSequence: stopTime.stopSequence,
+    scheduledTime: times.scheduled != null ? formatServiceSeconds(times.scheduled) : null,
+    predictedTime: times.predicted != null ? formatServiceSeconds(times.predicted) : null,
+    delayMinutes:
+      times.predicted != null && times.scheduled != null
+        ? Math.round((times.predicted - times.scheduled) / 60)
+        : null,
+    isRealTime: times.predicted != null,
+    ...extra,
+  };
+}
+
+/**
+ * The next trip in the vehicle's block, when the current trip finishes inside
+ * the prediction window. Shown so "where is it heading next" still has an
+ * answer as a bus reaches the end of the line.
+ */
+function getFollowingTrip(tripId, dayStartMs, nowSeconds, windowEnd) {
+  const next = getNextTripInBlock(tripId);
+  if (!next || next.start > windowEnd) return null;
+
+  const trip = getTrip(next.tripId);
+  const stopTimes = getStopTimes(next.tripId);
+  if (!trip || !stopTimes) return null;
+
+  const stops = [];
+  let firstIndex = -1;
+  let lastIndex = -1;
+  for (let i = 0; i < stopTimes.length; i++) {
+    const times = describeStop(next.tripId, stopTimes[i], dayStartMs);
+    if (times.effective == null) continue;
+    // The feed can keep a vehicle on a finished trip for a while; don't list
+    // stops of the next trip that are already in the past
+    if (times.effective < nowSeconds - PASSED_GRACE_SECONDS) continue;
+    if (times.effective > windowEnd) break;
+
+    const data = toStopFeatureData(stopTimes[i], times, { nextTripHeadsign: trip.headsign });
+    if (data) {
+      stops.push(data);
+      if (firstIndex === -1) firstIndex = i;
+      lastIndex = i;
+    }
+  }
+  if (stops.length === 0) return null;
+
+  let geometry = null;
+  const shape = trip.shapeId ? getShape(trip.shapeId) : null;
+  if (shape && lastIndex > firstIndex) {
+    const indexes = getStopShapeIndexes(next.tripId, shape, stopTimes);
+    const coordinates = shapeSlice(shape, indexes[firstIndex], indexes[lastIndex]);
+    if (coordinates.length >= 2) {
+      geometry = { type: 'LineString', coordinates };
+    }
+  }
+
+  return { tripId: next.tripId, routeId: trip.routeId, headsign: trip.headsign, stops, geometry };
+}
+
+/**
+ * Get upcoming route information for a vehicle on a trip.
+ *
+ * @param {object} vehicle
+ * @param {string} vehicle.tripId - GTFS trip_id from the realtime feed
+ * @param {number} vehicle.latitude
+ * @param {number} vehicle.longitude
+ * @param {number|null} [vehicle.currentStopSequence] - stop the vehicle is at or heading to
+ * @param {string|null} [vehicle.startDate] - service date (YYYYMMDD) from the realtime feed
+ * @param {number} nowMs - current time, epoch milliseconds
+ * @returns {object|null} upcoming route data, or null if the trip isn't in the schedule
+ */
+export function getUpcomingRoute(vehicle, nowMs) {
+  const { tripId } = vehicle;
   const trip = getTrip(tripId);
   if (!trip) {
     return null;
   }
 
-  // Verify this trip's service is active today
-  if (!isServiceActiveOnDate(trip.serviceId, currentTime)) {
+  const stopTimes = getStopTimes(tripId);
+  if (!stopTimes || stopTimes.length === 0) {
     return null;
   }
 
-  const tripStopTimes = getStopTimes(tripId);
-  if (!tripStopTimes || tripStopTimes.length === 0) {
-    return null;
+  // SEPTA's realtime feed is the authority on whether a trip is running. The
+  // published schedule file often covers a period that hasn't started yet, so
+  // its calendar is deliberately not consulted here.
+  const lastArrival = stopTimes[stopTimes.length - 1].arrivalSeconds;
+  const serviceDate = /^\d{8}$/.test(vehicle.startDate || '')
+    ? vehicle.startDate
+    : inferServiceDate(nowMs, lastArrival);
+  const dayStartMs = serviceDayStart(serviceDate);
+  const nowSeconds = (nowMs - dayStartMs) / 1000;
+  const windowEnd = nowSeconds + PREDICTION_WINDOW_SECONDS;
+
+  // Where the vehicle is in its stop list. The feed's own "current stop" is
+  // best because it stays right when the bus is running late; otherwise fall
+  // back to the clock.
+  const described = stopTimes.map((st) => describeStop(tripId, st, dayStartMs));
+  let firstIndex = -1;
+  if (vehicle.currentStopSequence != null) {
+    firstIndex = stopTimes.findIndex((st) => st.stopSequence >= vehicle.currentStopSequence);
+  } else {
+    firstIndex = described.findIndex(
+      (times) => times.effective != null && times.effective >= nowSeconds - PASSED_GRACE_SECONDS
+    );
+  }
+  if (firstIndex === -1) {
+    firstIndex = stopTimes.length; // past the last stop
   }
 
-  const currentSeconds = getSecondsOfDay(currentTime);
-  const windowEndSeconds = currentSeconds + PREDICTION_WINDOW_MINUTES * 60;
-
-  // Find upcoming stops within the time window
   const upcomingStops = [];
-  for (const st of tripStopTimes) {
-    // Use pre-computed arrivalSeconds from GTFS processing
-    const scheduledArrivalSeconds = st.arrivalSeconds;
+  let lastIndex = -1;
+  let latestSoFar = -Infinity;
+  for (let i = firstIndex; i < stopTimes.length; i++) {
+    const times = described[i];
+    if (times.effective == null) continue;
 
-    // Skip stops with invalid arrival times
-    if (scheduledArrivalSeconds == null) {
-      continue;
-    }
+    // A bus can't reach a stop before the one ahead of it, so a stop with no
+    // prediction of its own is no earlier than the latest time seen so far
+    latestSoFar = Math.max(latestSoFar, times.effective);
+    if (latestSoFar > windowEnd) break;
 
-    // Check for real-time prediction
-    const prediction = getStopPrediction(tripId, st.stopSequence);
-    let effectiveArrivalSeconds = scheduledArrivalSeconds;
-    let predictedArrivalTime = null;
-    let arrivalDelay = null;
-    let isRealTime = false;
-
-    if (prediction) {
-      if (prediction.arrivalTime != null) {
-        // Use predicted arrival time (Unix timestamp)
-        const predDate = new Date(prediction.arrivalTime * 1000);
-        effectiveArrivalSeconds = getSecondsOfDay(predDate);
-        predictedArrivalTime = unixToTimeString(prediction.arrivalTime);
-        isRealTime = true;
-      }
-      if (prediction.arrivalDelay != null) {
-        arrivalDelay = prediction.arrivalDelay;
-        isRealTime = true;
-        // If we have delay but no absolute time, calculate predicted time
-        if (predictedArrivalTime == null) {
-          effectiveArrivalSeconds = scheduledArrivalSeconds + prediction.arrivalDelay;
-          const hours = Math.floor(effectiveArrivalSeconds / 3600) % 24;
-          const minutes = Math.floor((effectiveArrivalSeconds % 3600) / 60);
-          const seconds = effectiveArrivalSeconds % 60;
-          predictedArrivalTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-        }
-      }
-    }
-
-    // Include stops arriving within the next 30 minutes (using effective/predicted time)
-    // Also include the next stop even if it's slightly in the past (for context)
-    if (effectiveArrivalSeconds >= currentSeconds - 60 && effectiveArrivalSeconds <= windowEndSeconds) {
-      const stop = getStop(st.stopId);
-      if (stop) {
-        upcomingStops.push({
-          stopId: st.stopId,
-          name: stop.name,
-          lat: stop.lat,
-          lon: stop.lon,
-          arrivalTime: st.arrivalTime,
-          departureTime: st.departureTime,
-          stopSequence: st.stopSequence,
-          predictedArrivalTime,
-          arrivalDelay,
-          isRealTime,
-        });
-      }
+    const data = toStopFeatureData(stopTimes[i], times);
+    if (data) {
+      upcomingStops.push(data);
+      lastIndex = i;
     }
   }
 
-  // Build the route geometry (GeoJSON LineString) for the upcoming segment
+  // Route line from the vehicle to the last upcoming stop
   let routeGeometry = null;
-  if (trip.shapeId) {
-    const shapePoints = getShape(trip.shapeId);
-    if (shapePoints && shapePoints.length > 0) {
-      // Find where on the shape the vehicle currently is
-      const { index: currentShapeIdx } = findClosestShapePoint(
-        shapePoints,
-        currentLat,
-        currentLon
-      );
+  const shape = trip.shapeId ? getShape(trip.shapeId) : null;
+  if (shape && shape.length >= 4 && lastIndex !== -1) {
+    const indexes = getStopShapeIndexes(tripId, shape, stopTimes);
 
-      // Find the shape point closest to the last upcoming stop
-      let endShapeIdx = shapePoints.length - 1;
-      if (upcomingStops.length > 0) {
-        const lastStop = upcomingStops[upcomingStops.length - 1];
-        const { index } = findClosestShapePoint(shapePoints, lastStop.lat, lastStop.lon);
-        endShapeIdx = index;
+    // The vehicle is somewhere between the stop it last passed and the one it's heading to
+    const searchFrom = firstIndex > 0 ? indexes[firstIndex - 1] : 0;
+    const searchTo = Math.max(indexes[firstIndex], searchFrom);
+    const { index: vehicleIndex, distance } = nearestShapeIndex(
+      shape,
+      vehicle.latitude,
+      vehicle.longitude,
+      searchFrom,
+      searchTo
+    );
+
+    const endIndex = indexes[lastIndex];
+    if (endIndex >= vehicleIndex) {
+      const coordinates = shapeSlice(shape, Math.min(vehicleIndex + 1, endIndex), endIndex);
+      if (distance <= VEHICLE_CONNECT_METERS) {
+        // Start the line at the vehicle itself so it visibly connects to the marker
+        coordinates.unshift([roundCoord(vehicle.longitude), roundCoord(vehicle.latitude)]);
       }
-
-      // Extract the segment from current position to end
-      // Only show route ahead of the bus, not behind it
-      // If bus has passed the last upcoming stop, don't show a route line
-      if (currentShapeIdx <= endShapeIdx) {
-        const segmentPoints = shapePoints.slice(currentShapeIdx, endShapeIdx + 1);
-
-        // Build GeoJSON LineString
-        if (segmentPoints.length >= 2) {
-          routeGeometry = {
-            type: 'LineString',
-            coordinates: segmentPoints.map((p) => [p.lon, p.lat]),
-          };
-        }
+      if (coordinates.length >= 2) {
+        routeGeometry = { type: 'LineString', coordinates };
       }
     }
   }
+
+  // If this trip ends inside the window, show the start of the next one too
+  const endsInWindow = lastArrival != null && lastArrival <= windowEnd;
+  const reachedEnd = lastIndex === stopTimes.length - 1 || firstIndex >= stopTimes.length;
+  const nextTrip = endsInWindow || reachedEnd ? getFollowingTrip(tripId, dayStartMs, nowSeconds, windowEnd) : null;
 
   return {
     tripId,
     routeId: trip.routeId,
-    headsign: trip.tripHeadsign,
-    directionId: trip.directionId,
+    headsign: trip.headsign,
     upcomingStops,
     routeGeometry,
+    nextTrip,
+  };
+}
+
+function stopFeature(vehicle, stop) {
+  const { lat, lon, ...properties } = stop;
+  return {
+    type: 'Feature',
+    properties: {
+      type: 'stop',
+      busId: vehicle.busId,
+      color: vehicle.color,
+      ...properties,
+    },
+    geometry: {
+      type: 'Point',
+      coordinates: [lon, lat],
+    },
   };
 }
 
 /**
- * Build a GeoJSON FeatureCollection for multiple buses with their upcoming routes.
+ * Build a GeoJSON FeatureCollection of upcoming route lines and stops.
  *
- * @param {Array} buses - Array of bus position objects with tripId, lat, lon
- * @param {Date} currentTime - Current time
- * @returns {object} - GeoJSON FeatureCollection
+ * @param {Array} vehicles - vehicle records with tripId and a position
+ * @param {number} nowMs - current time, epoch milliseconds
+ * @returns {{geojson: object, trips: Map<string, object>}} the features, plus
+ *   the route found for each vehicle id
  */
-export function buildRoutesGeoJSON(buses, currentTime) {
+export function buildRoutesGeoJSON(vehicles, nowMs) {
   const features = [];
+  const trips = new Map();
 
-  for (const bus of buses) {
-    if (!bus.tripId || bus.latitude == null || bus.longitude == null) {
+  for (const vehicle of vehicles) {
+    if (!vehicle.tripId || vehicle.latitude == null || vehicle.longitude == null) {
       continue;
     }
 
-    const route = getUpcomingRoute(bus.tripId, bus.latitude, bus.longitude, currentTime);
+    const route = getUpcomingRoute(vehicle, nowMs);
     if (!route) {
       continue;
     }
+    trips.set(vehicle.busId, route);
 
-    // Add route line feature
+    const lineProperties = { type: 'route', busId: vehicle.busId, color: vehicle.color };
     if (route.routeGeometry) {
       features.push({
         type: 'Feature',
-        properties: {
-          type: 'route',
-          busId: bus.busId,
-          color: bus.color,
-          tripId: route.tripId,
-          routeId: route.routeId,
-          headsign: route.headsign,
-        },
+        properties: { ...lineProperties, routeId: route.routeId, headsign: route.headsign },
         geometry: route.routeGeometry,
       });
     }
-
-    // Add stop features
     for (const stop of route.upcomingStops) {
-      features.push({
-        type: 'Feature',
-        properties: {
-          type: 'stop',
-          busId: bus.busId,
-          color: bus.color,
-          stopId: stop.stopId,
-          name: stop.name,
-          arrivalTime: stop.arrivalTime,
-          departureTime: stop.departureTime,
-          predictedArrivalTime: stop.predictedArrivalTime,
-          arrivalDelay: stop.arrivalDelay,
-          isRealTime: stop.isRealTime,
-          stopSequence: stop.stopSequence,
-        },
-        geometry: {
-          type: 'Point',
-          coordinates: [stop.lon, stop.lat],
-        },
-      });
+      features.push(stopFeature(vehicle, stop));
+    }
+
+    if (route.nextTrip) {
+      if (route.nextTrip.geometry) {
+        features.push({
+          type: 'Feature',
+          properties: {
+            ...lineProperties,
+            routeId: route.nextTrip.routeId,
+            headsign: route.nextTrip.headsign,
+            nextTrip: true,
+          },
+          geometry: route.nextTrip.geometry,
+        });
+      }
+      for (const stop of route.nextTrip.stops) {
+        features.push(stopFeature(vehicle, stop));
+      }
     }
   }
 
   return {
-    type: 'FeatureCollection',
-    features,
+    geojson: { type: 'FeatureCollection', features },
+    trips,
   };
 }

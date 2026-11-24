@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { createWriteStream, createReadStream } from 'node:fs';
-import { mkdir, rm, writeFile, readdir } from 'node:fs/promises';
+import { mkdir, rm, writeFile, rename, readFile } from 'node:fs/promises';
 import { pipeline } from 'node:stream/promises';
 import { Readable } from 'node:stream';
 import path from 'node:path';
@@ -11,14 +11,15 @@ import { parse } from 'csv-parse';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, '..', 'data', 'gtfs');
-const TEMP_DIR = path.join(DATA_DIR, 'raw');
-const GTFS_URL = 'https://www3.septa.org/developer/google_bus.zip';
+export const GTFS_URL = 'https://www3.septa.org/developer/google_bus.zip';
+
+const DOWNLOAD_TIMEOUT_MS = 5 * 60 * 1000;
 
 /**
- * Parse a GTFS time string (HH:MM:SS) to seconds since midnight.
+ * Parse a GTFS time string (HH:MM:SS) to seconds since the service day start.
  * GTFS times can exceed 24:00:00 for trips spanning midnight.
  */
-function parseGtfsTime(timeStr) {
+export function parseGtfsTime(timeStr) {
   if (!timeStr) return null;
   const parts = timeStr.split(':');
   if (parts.length !== 3) return null;
@@ -27,229 +28,230 @@ function parseGtfsTime(timeStr) {
   return hours * 3600 + minutes * 60 + seconds;
 }
 
-async function downloadAndExtract() {
+async function downloadAndExtract(rawDir) {
   console.log('Downloading GTFS data from SEPTA...');
 
-  const response = await fetch(GTFS_URL);
+  const response = await fetch(GTFS_URL, { signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS) });
   if (!response.ok) {
     throw new Error(`Failed to download: ${response.status} ${response.statusText}`);
   }
 
-  // Clean and recreate temp directory
-  await rm(TEMP_DIR, { recursive: true, force: true });
-  await mkdir(TEMP_DIR, { recursive: true });
+  await rm(rawDir, { recursive: true, force: true });
+  await mkdir(rawDir, { recursive: true });
 
-  const zipPath = path.join(TEMP_DIR, 'gtfs.zip');
-  const fileStream = createWriteStream(zipPath);
-
-  await pipeline(Readable.fromWeb(response.body), fileStream);
+  const zipPath = path.join(rawDir, 'gtfs.zip');
+  await pipeline(Readable.fromWeb(response.body), createWriteStream(zipPath));
   console.log('Download complete. Extracting...');
 
-  // Extract zip
-  await createReadStream(zipPath)
-    .pipe(unzipper.Extract({ path: TEMP_DIR }))
-    .promise();
-
+  await createReadStream(zipPath).pipe(unzipper.Extract({ path: rawDir })).promise();
   console.log('Extraction complete.');
+
+  return {
+    lastModified: response.headers.get('last-modified'),
+    etag: response.headers.get('etag'),
+  };
 }
 
-async function parseCSV(filename) {
-  const filePath = path.join(TEMP_DIR, filename);
-  const records = [];
-
-  const parser = createReadStream(filePath).pipe(
-    parse({
-      columns: true,
-      skip_empty_lines: true,
-      trim: true,
-    })
+/** Stream a GTFS CSV file row by row without holding it all in memory. */
+async function eachRow(rawDir, filename, onRow) {
+  const parser = createReadStream(path.join(rawDir, filename)).pipe(
+    parse({ columns: true, skip_empty_lines: true, trim: true, bom: true })
   );
-
   for await (const record of parser) {
-    records.push(record);
+    onRow(record);
   }
-
-  return records;
 }
 
-async function processTrips() {
-  console.log('Processing trips.txt...');
-  const records = await parseCSV('trips.txt');
+// IDs that are plain integers are stored as numbers, which takes far less memory
+function compactId(id) {
+  return /^[1-9]\d{0,14}$/.test(id) ? Number(id) : id;
+}
 
+function round(value, places) {
+  const factor = 10 ** places;
+  return Math.round(value * factor) / factor;
+}
+
+async function processTrips(rawDir) {
+  console.log('Processing trips.txt...');
   const trips = {};
-  for (const r of records) {
+  await eachRow(rawDir, 'trips.txt', (r) => {
     trips[r.trip_id] = {
       routeId: r.route_id,
       serviceId: r.service_id,
       shapeId: r.shape_id || null,
-      directionId: r.direction_id ? parseInt(r.direction_id, 10) : null,
-      tripHeadsign: r.trip_headsign || null,
       blockId: r.block_id || null,
+      headsign: r.trip_headsign || null,
     };
-  }
-
+  });
   console.log(`  Processed ${Object.keys(trips).length} trips`);
   return trips;
 }
 
-async function processStopTimes() {
+async function processRoutes(rawDir) {
+  console.log('Processing routes.txt...');
+  // routeId -> the name riders know it by
+  const routes = {};
+  await eachRow(rawDir, 'routes.txt', (r) => {
+    routes[r.route_id] = r.route_short_name || r.route_long_name || r.route_id;
+  });
+  console.log(`  Processed ${Object.keys(routes).length} routes`);
+  return routes;
+}
+
+async function processStopTimes(rawDir) {
   console.log('Processing stop_times.txt...');
-  const records = await parseCSV('stop_times.txt');
 
+  // tripId -> [stopId, stopSequence, arrivalSeconds, ...] as flat triples.
+  // This file has millions of rows, so rows go straight into their final
+  // form rather than through an intermediate object per row.
   const stopTimes = {};
-  for (const r of records) {
-    const tripId = r.trip_id;
-    if (!stopTimes[tripId]) {
-      stopTimes[tripId] = [];
+  const unsorted = new Set();
+  let tripCount = 0;
+  await eachRow(rawDir, 'stop_times.txt', (r) => {
+    let flat = stopTimes[r.trip_id];
+    if (!flat) {
+      flat = stopTimes[r.trip_id] = [];
+      tripCount++;
     }
-    stopTimes[tripId].push({
-      stopId: r.stop_id,
-      stopSequence: parseInt(r.stop_sequence, 10),
-      arrivalTime: r.arrival_time,
-      departureTime: r.departure_time,
-      arrivalSeconds: parseGtfsTime(r.arrival_time),
-      departureSeconds: parseGtfsTime(r.departure_time),
-    });
+    const sequence = parseInt(r.stop_sequence, 10);
+    if (flat.length > 0 && sequence < flat[flat.length - 2]) {
+      unsorted.add(r.trip_id);
+    }
+    const arrival = parseGtfsTime(r.arrival_time) ?? parseGtfsTime(r.departure_time);
+    flat.push(compactId(r.stop_id), sequence, arrival ?? -1);
+  });
+
+  // Rows are normally already in stop order; sort the trips where they weren't
+  for (const tripId of unsorted) {
+    const flat = stopTimes[tripId];
+    const rows = [];
+    for (let i = 0; i < flat.length; i += 3) {
+      rows.push([flat[i], flat[i + 1], flat[i + 2]]);
+    }
+    rows.sort((a, b) => a[1] - b[1]);
+    stopTimes[tripId] = rows.flat();
   }
 
-  // Sort each trip's stops by sequence
-  for (const tripId of Object.keys(stopTimes)) {
-    stopTimes[tripId].sort((a, b) => a.stopSequence - b.stopSequence);
-  }
-
-  console.log(`  Processed stop times for ${Object.keys(stopTimes).length} trips`);
+  console.log(`  Processed stop times for ${tripCount} trips`);
   return stopTimes;
 }
 
-async function processStops() {
+async function processStops(rawDir) {
   console.log('Processing stops.txt...');
-  const records = await parseCSV('stops.txt');
-
   const stops = {};
-  for (const r of records) {
+  await eachRow(rawDir, 'stops.txt', (r) => {
     stops[r.stop_id] = {
       name: r.stop_name,
       lat: parseFloat(r.stop_lat),
       lon: parseFloat(r.stop_lon),
     };
-  }
-
+  });
   console.log(`  Processed ${Object.keys(stops).length} stops`);
   return stops;
 }
 
-async function processShapes() {
+async function processShapes(rawDir) {
   console.log('Processing shapes.txt...');
-  const records = await parseCSV('shapes.txt');
 
-  const shapes = {};
-  for (const r of records) {
-    const shapeId = r.shape_id;
-    if (!shapes[shapeId]) {
-      shapes[shapeId] = [];
+  const byShape = new Map();
+  await eachRow(rawDir, 'shapes.txt', (r) => {
+    let points = byShape.get(r.shape_id);
+    if (!points) {
+      points = [];
+      byShape.set(r.shape_id, points);
     }
-    shapes[shapeId].push({
-      lat: parseFloat(r.shape_pt_lat),
-      lon: parseFloat(r.shape_pt_lon),
-      sequence: parseInt(r.shape_pt_sequence, 10),
-      distTraveled: r.shape_dist_traveled ? parseFloat(r.shape_dist_traveled) : null,
-    });
+    points.push([
+      parseInt(r.shape_pt_sequence, 10),
+      round(parseFloat(r.shape_pt_lat), 6),
+      round(parseFloat(r.shape_pt_lon), 6),
+    ]);
+  });
+
+  // Flatten to [lat, lon, lat, lon, ...] in point order
+  const shapes = {};
+  for (const [shapeId, points] of byShape) {
+    points.sort((a, b) => a[0] - b[0]);
+    const flat = [];
+    for (const [, lat, lon] of points) {
+      flat.push(lat, lon);
+    }
+    shapes[shapeId] = flat;
   }
 
-  // Sort each shape's points by sequence
-  for (const shapeId of Object.keys(shapes)) {
-    shapes[shapeId].sort((a, b) => a.sequence - b.sequence);
-  }
-
-  console.log(`  Processed ${Object.keys(shapes).length} shapes`);
+  console.log(`  Processed ${byShape.size} shapes`);
   return shapes;
 }
 
-async function processCalendar() {
-  console.log('Processing calendar.txt...');
-  const records = await parseCSV('calendar.txt');
-
-  const calendar = {};
-  for (const r of records) {
-    calendar[r.service_id] = {
-      monday: r.monday === '1',
-      tuesday: r.tuesday === '1',
-      wednesday: r.wednesday === '1',
-      thursday: r.thursday === '1',
-      friday: r.friday === '1',
-      saturday: r.saturday === '1',
-      sunday: r.sunday === '1',
-      startDate: r.start_date,
-      endDate: r.end_date,
-    };
-  }
-
-  console.log(`  Processed ${Object.keys(calendar).length} service calendars`);
-  return calendar;
-}
-
-async function processCalendarDates() {
-  console.log('Processing calendar_dates.txt...');
-
-  // Check if file exists
-  const files = await readdir(TEMP_DIR);
-  if (!files.includes('calendar_dates.txt')) {
-    console.log('  No calendar_dates.txt found, skipping');
-    return {};
-  }
-
-  const records = await parseCSV('calendar_dates.txt');
-
-  // Group by service_id
-  const calendarDates = {};
-  for (const r of records) {
-    const serviceId = r.service_id;
-    if (!calendarDates[serviceId]) {
-      calendarDates[serviceId] = [];
-    }
-    calendarDates[serviceId].push({
-      date: r.date,
-      exceptionType: parseInt(r.exception_type, 10), // 1 = added, 2 = removed
-    });
-  }
-
-  console.log(`  Processed calendar dates for ${Object.keys(calendarDates).length} services`);
-  return calendarDates;
-}
-
-async function main() {
+async function readFeedVersion(rawDir) {
+  let version = null;
   try {
-    await downloadAndExtract();
+    await eachRow(rawDir, 'feed_info.txt', (r) => {
+      version = r.feed_version || version;
+    });
+  } catch {
+    // feed_info.txt is optional
+  }
+  return version;
+}
 
-    const [trips, stopTimes, stops, shapes, calendar, calendarDates] = await Promise.all([
-      processTrips(),
-      processStopTimes(),
-      processStops(),
-      processShapes(),
-      processCalendar(),
-      processCalendarDates(),
-    ]);
+/**
+ * Download SEPTA's schedule and write it to dataDir in the compact JSON form
+ * the server loads. Files are written under temporary names and renamed at
+ * the end so a failed run never leaves a half-written schedule behind.
+ */
+export async function downloadGtfs(dataDir = DATA_DIR) {
+  const rawDir = path.join(dataDir, 'raw');
+  await mkdir(dataDir, { recursive: true });
+
+  try {
+    const source = await downloadAndExtract(rawDir);
+
+    const outputs = {
+      'routes.json': await processRoutes(rawDir),
+      'trips.json': await processTrips(rawDir),
+      'stop_times.json': await processStopTimes(rawDir),
+      'stops.json': await processStops(rawDir),
+      'shapes.json': await processShapes(rawDir),
+      'meta.json': {
+        ...source,
+        feedVersion: await readFeedVersion(rawDir),
+        downloadedAt: new Date().toISOString(),
+      },
+    };
+
+    if (Object.keys(outputs['trips.json']).length === 0 || Object.keys(outputs['stop_times.json']).length === 0) {
+      throw new Error('Downloaded schedule has no trips; keeping the existing data');
+    }
 
     console.log('\nWriting JSON files...');
-
-    await Promise.all([
-      writeFile(path.join(DATA_DIR, 'trips.json'), JSON.stringify(trips)),
-      writeFile(path.join(DATA_DIR, 'stop_times.json'), JSON.stringify(stopTimes)),
-      writeFile(path.join(DATA_DIR, 'stops.json'), JSON.stringify(stops)),
-      writeFile(path.join(DATA_DIR, 'shapes.json'), JSON.stringify(shapes)),
-      writeFile(path.join(DATA_DIR, 'calendar.json'), JSON.stringify(calendar)),
-      writeFile(path.join(DATA_DIR, 'calendar_dates.json'), JSON.stringify(calendarDates)),
-    ]);
-
-    // Clean up raw files
-    await rm(TEMP_DIR, { recursive: true, force: true });
+    for (const [name, data] of Object.entries(outputs)) {
+      await writeFile(path.join(dataDir, `${name}.tmp`), JSON.stringify(data));
+      outputs[name] = null; // let each one be collected as soon as it is written
+    }
+    for (const name of Object.keys(outputs)) {
+      await rename(path.join(dataDir, `${name}.tmp`), path.join(dataDir, name));
+    }
 
     console.log('\nGTFS data processing complete!');
-    console.log(`Output directory: ${DATA_DIR}`);
-  } catch (error) {
-    console.error('Error:', error.message);
-    process.exit(1);
+    console.log(`Output directory: ${dataDir}`);
+  } finally {
+    await rm(rawDir, { recursive: true, force: true });
   }
 }
 
-main();
+/** What the last successful download recorded about its source file. */
+export async function readGtfsMeta(dataDir = DATA_DIR) {
+  try {
+    return JSON.parse(await readFile(path.join(dataDir, 'meta.json'), 'utf-8'));
+  } catch {
+    return null;
+  }
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  downloadGtfs().catch((error) => {
+    console.error('Error:', error.message);
+    process.exit(1);
+  });
+}

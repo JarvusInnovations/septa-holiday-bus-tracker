@@ -12,7 +12,36 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .tool-versions
+          package-manager-cache: false
+
+      - name: Test backend
+        working-directory: backend
+        run: |
+          npm ci
+          npm test
+
+      - name: Lint and build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run lint
+          npm run build
+
   build:
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read

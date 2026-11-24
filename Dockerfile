@@ -32,11 +32,16 @@ RUN --mount=type=cache,target=/tmp \
 # Copy backend source
 COPY backend/ ./
 
+# Bake a copy of SEPTA's schedule into the image so the server can start
+# without SEPTA's download being reachable. It checks for a newer schedule
+# shortly after starting and a few times a day after that.
+RUN node bin/download-gtfs.js
+
 # Copy built frontend to public directory
 COPY --from=frontend-build /app/frontend/dist ./public
 
 # Expose port
 EXPOSE 3000
 
-# Run startup script (downloads GTFS data if needed, then starts server)
+# Run startup script (downloads GTFS data only if the image somehow has none, then starts server)
 CMD ["sh", "start.sh"]

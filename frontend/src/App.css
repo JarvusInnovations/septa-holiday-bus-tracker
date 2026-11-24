@@ -45,3 +45,31 @@
 .maplibregl-popup-close-button {
   padding: 4px 8px;
 }
+
+/* Map popups */
+.popup {
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.popup-title {
+  display: block;
+  padding-right: 16px;
+}
+
+.popup-muted {
+  color: #666;
+}
+
+.popup-live-dot,
+.popup-late {
+  color: #e53935;
+}
+
+.popup-early {
+  color: #2e7d32;
+}
+
+.popup-scheduled-dot {
+  color: #757575;
+}
